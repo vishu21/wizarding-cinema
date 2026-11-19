@@ -770,7 +770,7 @@
         durationSec: 8760,
         director: 'David Yates',
         tagline: 'Nowhere is safe.',
-        defaultDriveUrl: 'https://drive.google.com/file/d/19w8C4ArAIzsGcj1weAluyfRKIsthrRR2/view',
+        defaultDriveUrl: 'https://drive.google.com/file/d/19w8C4ArAIzsGcj1weAluyfRKlsthrRR2/view',
         subtitlePageUrl: 'https://yts-subs.com/subtitles/harry-potter-and-the-deathly-hallows-part-1-english-yify-584',
         accentPrimary: '#cbd5e1',
         accentSecondary: '#334155',
@@ -796,7 +796,7 @@
         durationSec: 7800,
         director: 'David Yates',
         tagline: 'It all ends.',
-        defaultDriveUrl: 'https://drive.google.com/file/d/1bp_G-w7lW1mV1FPauta3BcYGXFGsgl4P/view',
+        defaultDriveUrl: 'https://drive.google.com/file/d/1bp_G-w7lW1mV1FPauta3BcYGXFGsgL4P/view',
         subtitlePageUrl: 'https://yts-subs.com/subtitles/harry-potter-and-the-deathly-hallows-part-2-english-yify-853',
         accentPrimary: '#f3d574',
         accentSecondary: '#991b1b',
@@ -1942,11 +1942,23 @@
     }
 
     // 14. Initialize Application on Window Load
+    window.addEventListener('error', function (e) {
+      if (typeof showToast === 'function') {
+        showToast('Playback Notice', e.message || 'An unexpected script error occurred.');
+      }
+    });
+
     window.onload = function () {
-      resizeCanvases();
-      updateMarathonHeader();
-      selectMovie(0, false);
-      requestAnimationFrame(renderLoop);
+      try {
+        resizeCanvases();
+        updateMarathonHeader();
+        selectMovie(0, false);
+        requestAnimationFrame(renderLoop);
+      } catch (err) {
+        if (typeof showToast === 'function') {
+          showToast('Initialization Notice', err.message);
+        }
+      }
     };
   </script>
 </body>
