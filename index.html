@@ -1,0 +1,1953 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wizarding World Cinema — 8-Movie Marathon Player</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Google Fonts: Cinzel, Cormorant Garamond, and Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800&family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <script>
+    if (typeof tailwind !== 'undefined') {
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              obsidian: '#07090f',
+              midnight: '#0c101d',
+              parchment: '#f3ead8',
+              gold: {
+                DEFAULT: '#d4af37',
+                light: '#f3d574',
+                dark: '#9c7c1c',
+              },
+            },
+            fontFamily: {
+              display: ['Cinzel', 'serif'],
+              serif: ['Cormorant Garamond', 'serif'],
+              sans: ['Plus Jakarta Sans', 'sans-serif'],
+            },
+          },
+        },
+      };
+    }
+  </script>
+
+  <style>
+    /* Custom scrollbar & atmospheric styling */
+    body {
+      background-color: #07090f;
+      color: #e8e4d9;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      overflow-x: hidden;
+    }
+
+    /* Native video caption styling for converted .srt / .vtt subtitles */
+    video::cue {
+      background-color: rgba(7, 9, 15, 0.85);
+      color: #f3ead8;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 1.05rem;
+      line-height: 1.4;
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95);
+    }
+
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #07090f;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(212, 175, 55, 0.25);
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(212, 175, 55, 0.55);
+    }
+
+    /* Gold shimmer border & glow */
+    .gold-glow {
+      box-shadow: 0 0 28px -6px rgba(212, 175, 55, 0.22);
+    }
+    .gold-border {
+      border: 1px solid rgba(212, 175, 55, 0.25);
+    }
+    .gold-border-active {
+      border: 1px solid rgba(212, 175, 55, 0.75);
+      box-shadow: 0 0 22px -4px rgba(212, 175, 55, 0.35);
+    }
+
+    /* Custom Range Slider */
+    input[type='range'].cinema-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      background: transparent;
+      cursor: pointer;
+    }
+    input[type='range'].cinema-slider::-webkit-slider-runnable-track {
+      height: 5px;
+      border-radius: 999px;
+    }
+    input[type='range'].cinema-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      height: 14px;
+      width: 14px;
+      border-radius: 50%;
+      background: #f3d574;
+      border: 2px solid #07090f;
+      box-shadow: 0 0 8px rgba(212, 175, 55, 0.9);
+      margin-top: -4.5px;
+      transition: transform 0.15s ease;
+    }
+    input[type='range'].cinema-slider:hover::-webkit-slider-thumb {
+      transform: scale(1.25);
+    }
+
+    /* Theater mode transition */
+    .theater-dim {
+      transition: opacity 0.4s ease, filter 0.4s ease;
+    }
+    body.theater-active .theater-dim {
+      opacity: 0.18;
+      filter: brightness(0.45);
+    }
+    body.theater-active .theater-dim:hover {
+      opacity: 0.95;
+      filter: brightness(1);
+    }
+
+    /* Dropzone highlight */
+    .drag-over {
+      border-color: #f3d574 !important;
+      background-color: rgba(212, 175, 55, 0.12) !important;
+    }
+  </style>
+</head>
+<body class="min-h-screen relative selection:bg-gold/30 selection:text-gold-light">
+
+  <!-- Ambient Background Candlelight / Magic Embers Canvas -->
+  <canvas id="ambientCanvas" class="fixed inset-0 w-full h-full pointer-events-none z-0"></canvas>
+
+  <!-- Toast / Message Box Notification (Never uses alert()) -->
+  <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none max-w-sm"></div>
+
+  <!-- Hidden File Inputs -->
+  <input type="file" id="singleFileInput" accept="video/*,.mkv,.mp4,.webm,.mov" class="hidden" />
+  <input type="file" id="bulkFileInput" accept="video/*,.mkv,.mp4,.webm,.mov" multiple class="hidden" />
+  <input type="file" id="subtitleFileInput" accept=".srt,.vtt,text/vtt" class="hidden" />
+
+  <!-- Top Navigation & Marathon Progress Header -->
+  <header class="relative z-10 border-b border-gold/20 bg-obsidian/85 backdrop-blur-md sticky top-0 theater-dim">
+    <div class="max-w-[1600px] mx-auto px-4 sm:px-6 py-3.5 flex flex-wrap items-center justify-between gap-4">
+      <!-- Brand / Crest -->
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-gold/30 to-amber-950/60 border border-gold/50 flex items-center justify-center shadow-lg">
+          <svg class="w-6 h-6 text-gold-light" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+            <path d="M12 2L2 20h20L12 2z" />
+            <circle cx="12" cy="14" r="4" />
+            <line x1="12" y1="2" x2="12" y2="20" />
+          </svg>
+        </div>
+        <div>
+          <h1 class="font-display text-lg sm:text-xl font-bold tracking-wider text-gold-light uppercase leading-tight">
+            Wizarding World Cinema
+          </h1>
+          <p class="text-xs text-slate-400 tracking-wide">
+            Complete 8-Film Marathon Collection &bull; 19h 39m Total Runtime
+          </p>
+        </div>
+      </div>
+
+      <!-- Marathon Completion Tracker & Global Controls -->
+      <div class="flex flex-wrap items-center gap-3 sm:gap-5">
+        <!-- Progress Pill -->
+        <div class="bg-midnight/90 border border-gold/25 rounded-xl px-3.5 py-2 flex items-center gap-3">
+          <div>
+            <div class="flex items-center justify-between gap-4 text-xs mb-1">
+              <span class="text-slate-300 font-medium">Marathon Progress</span>
+              <span id="marathonStatsText" class="text-gold-light font-semibold">0 / 8 Films</span>
+            </div>
+            <div class="w-36 sm:w-44 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+              <div id="marathonProgressBar" class="h-full bg-gradient-to-r from-gold-dark via-gold to-gold-light transition-all duration-500" style="width: 0%"></div>
+            </div>
+          </div>
+          <button id="resetProgressBtn" title="Reset Watch Progress" class="p-1.5 text-slate-400 hover:text-gold-light rounded-lg hover:bg-white/5 transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+          </button>
+        </div>
+
+        <!-- Bulk Load All 8 Movies Button -->
+        <button id="bulkUploadBtn" class="px-3.5 py-2 rounded-xl bg-gradient-to-r from-gold-dark/80 to-gold/80 hover:from-gold hover:to-gold-light text-obsidian font-semibold text-xs sm:text-sm flex items-center gap-2 shadow-md transition cursor-pointer">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+          </svg>
+          <span>Load All 8 Movie Files</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Cinema Workspace -->
+  <main id="mainWorkspace" class="relative z-10 max-w-[1600px] mx-auto px-4 sm:px-6 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+    <!-- LEFT / PRIMARY COLUMN: Video Viewport + Metadata + Chapters -->
+    <section id="playerColumn" class="lg:col-span-8 flex flex-col gap-5 transition-all duration-300">
+
+      <!-- Widescreen 16:9 Cinema Stage -->
+      <div id="cinemaContainer" class="relative w-full aspect-video bg-black rounded-2xl overflow-hidden gold-border gold-glow group select-none">
+
+        <!-- Google Drive Cloud Stream Iframe (Used when in Cloud Drive Mode) -->
+        <iframe
+          id="driveIframe"
+          class="w-full h-full border-0 bg-black hidden"
+          allow="autoplay; fullscreen; encrypted-media"
+          allowfullscreen
+        ></iframe>
+
+        <!-- HTML5 Native Video Element (Used when local video file is loaded) -->
+        <video id="nativeVideo" class="w-full h-full object-contain bg-black hidden" playsinline crossorigin="anonymous"></video>
+
+        <!-- Interactive Magical Preview Canvas (Used when in Preview Mode / no stream active) -->
+        <canvas id="previewCanvas" class="w-full h-full block"></canvas>
+
+        <!-- Top Overlay Bar inside Cinema Stage -->
+        <div id="topOverlay" class="absolute top-0 inset-x-0 p-4 sm:p-5 bg-gradient-to-b from-black/85 via-black/40 to-transparent flex items-start justify-between gap-3 transition-opacity duration-300 pointer-events-none">
+          <div class="pointer-events-auto">
+            <div class="flex items-center gap-2 mb-1">
+              <span id="stagePartBadge" class="px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-gold/20 text-gold-light border border-gold/40">
+                Part 1 of 8
+              </span>
+              <span id="stageModeBadge" class="px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-sky-950/90 text-sky-200 border border-sky-400/40">
+                Cloud Stream (Google Drive)
+              </span>
+            </div>
+            <h2 id="stageMovieTitle" class="font-display text-base sm:text-xl md:text-2xl font-bold text-white drop-shadow">
+              Harry Potter and the Sorcerer's Stone
+            </h2>
+          </div>
+
+          <!-- Top-Right Quick Action: Ambient Chime & Load Local Video -->
+          <div class="flex items-center gap-2 pointer-events-auto">
+            <button id="ambientSoundToggle" title="Toggle Magical Ambient Synth Chime" class="px-3 py-1.5 rounded-xl bg-black/65 hover:bg-black/85 text-slate-200 border border-white/15 text-xs font-medium flex items-center gap-1.5 backdrop-blur-md transition cursor-pointer">
+              <span id="ambientSoundIcon">🔇</span>
+              <span class="hidden sm:inline">Ambient Chime</span>
+            </button>
+            <button id="loadCurrentMovieBtn" class="px-3 py-1.5 rounded-xl bg-gold/90 hover:bg-gold text-obsidian font-semibold text-xs flex items-center gap-1.5 shadow-lg transition cursor-pointer">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+              <span id="loadCurrentBtnLabel">Load Local File</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Center Big Play Button Overlay (when paused in Local / Preview modes) -->
+        <button id="centerPlayOverlay" aria-label="Play or Pause" class="absolute inset-0 m-auto w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gold/90 hover:bg-gold-light text-obsidian flex items-center justify-center shadow-2xl transition-transform duration-200 hover:scale-110 cursor-pointer">
+          <svg id="centerPlayIcon" class="w-8 h-8 sm:w-9 sm:h-9 translate-x-0.5" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M8 5v14l11-7z" />
+          </svg>
+        </button>
+
+        <!-- Up Next Marathon Auto-Play Countdown Overlay -->
+        <div id="upNextOverlay" class="hidden absolute inset-0 bg-obsidian/90 backdrop-blur-md z-30 flex flex-col items-center justify-center p-6 text-center">
+          <p class="text-xs uppercase tracking-[0.25em] text-gold font-semibold mb-2">Marathon Auto-Play</p>
+          <h3 id="upNextTitle" class="font-display text-xl sm:text-3xl font-bold text-white mb-2">
+            Up Next: Part 2 — The Chamber of Secrets
+          </h3>
+          <p class="text-slate-300 text-sm mb-6">
+            Starting automatically in <span id="upNextCountdown" class="text-gold-light font-bold text-lg">5</span> seconds...
+          </p>
+          <div class="flex items-center gap-3">
+            <button id="playNextNowBtn" class="px-5 py-2.5 rounded-xl bg-gold hover:bg-gold-light text-obsidian font-semibold text-sm transition cursor-pointer">
+              Play Part Now
+            </button>
+            <button id="cancelAutoNextBtn" class="px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-medium text-sm border border-white/15 transition cursor-pointer">
+              Stay Here
+            </button>
+          </div>
+        </div>
+
+        <!-- Drag & Drop File Overlay -->
+        <div id="dropHintOverlay" class="hidden absolute inset-0 bg-obsidian/85 backdrop-blur-sm z-20 border-2 border-dashed border-gold rounded-2xl flex flex-col items-center justify-center p-6 text-center pointer-events-none">
+          <svg class="w-12 h-12 text-gold-light mb-3 animate-bounce" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+          </svg>
+          <p class="font-display text-lg font-bold text-gold-light">Drop Movie File(s) to Play</p>
+          <p class="text-xs text-slate-300 mt-1">Drop 1 file for the current film, or multiple files to populate Parts 1–8</p>
+        </div>
+
+        <!-- Bottom Custom Cinema Control Bar -->
+        <div id="bottomControls" class="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/95 via-black/80 to-transparent pt-8 pb-3 px-3 sm:px-5 flex flex-col gap-2 transition-opacity duration-300">
+
+          <!-- Timeline Scrubber Bar -->
+          <div class="flex items-center gap-3">
+            <span id="currentTimeText" class="text-[11px] sm:text-xs font-mono text-slate-300 w-12 sm:w-14 text-right">00:00</span>
+            <div class="relative flex-1 flex items-center">
+              <input id="seekSlider" type="range" min="0" max="100" step="0.1" value="0" class="cinema-slider w-full z-10" />
+              <div class="absolute inset-x-0 h-[5px] bg-white/20 rounded-full overflow-hidden pointer-events-none">
+                <div id="seekFill" class="h-full bg-gradient-to-r from-gold-dark via-gold to-gold-light" style="width: 0%"></div>
+              </div>
+            </div>
+            <span id="durationTimeText" class="text-[11px] sm:text-xs font-mono text-slate-300 w-12 sm:w-14">02:32:00</span>
+          </div>
+
+          <!-- Transport & Utility Buttons Row -->
+          <div class="flex flex-wrap items-center justify-between gap-2 pt-0.5">
+            <!-- Left Transport Group -->
+            <div class="flex items-center gap-1 sm:gap-2">
+              <!-- Previous Movie Part -->
+              <button id="prevPartBtn" title="Previous Film (Shift+P)" class="p-2 rounded-lg text-slate-200 hover:text-gold-light hover:bg-white/10 transition cursor-pointer">
+                <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
+                </svg>
+              </button>
+
+              <!-- Rewind 10s -->
+              <button id="rewindBtn" title="Rewind 10s (Left Arrow)" class="p-2 rounded-lg text-slate-200 hover:text-gold-light hover:bg-white/10 transition cursor-pointer">
+                <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0019 16V8a1 1 0 00-1.6-.8l-5.333 4zM4.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0011 16V8a1 1 0 00-1.6-.8l-5.334 4z" />
+                </svg>
+              </button>
+
+              <!-- Play / Pause -->
+              <button id="playPauseBtn" title="Play / Pause (Space)" class="p-2.5 rounded-xl bg-gold hover:bg-gold-light text-obsidian transition shadow cursor-pointer">
+                <svg id="playPauseIcon" class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M8 5v14l11-7z" />
+                </svg>
+              </button>
+
+              <!-- Forward 10s -->
+              <button id="forwardBtn" title="Forward 10s (Right Arrow)" class="p-2 rounded-lg text-slate-200 hover:text-gold-light hover:bg-white/10 transition cursor-pointer">
+                <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M11.933 12.8a1 1 0 000-1.6L6.6 7.2A1 1 0 005 8v8a1 1 0 001.6.8l5.333-4zM19.933 12.8a1 1 0 000-1.6l-5.333-4A1 1 0 0013 8v8a1 1 0 001.6.8l5.333-4z" />
+                </svg>
+              </button>
+
+              <!-- Next Movie Part -->
+              <button id="nextPartBtn" title="Next Film (Shift+N)" class="p-2 rounded-lg text-slate-200 hover:text-gold-light hover:bg-white/10 transition cursor-pointer">
+                <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
+                </svg>
+              </button>
+
+              <!-- Volume Control -->
+              <div class="flex items-center gap-1.5 ml-1">
+                <button id="muteBtn" title="Mute / Unmute (M)" class="p-2 rounded-lg text-slate-200 hover:text-gold-light hover:bg-white/10 transition cursor-pointer">
+                  <svg id="volumeIcon" class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                  </svg>
+                </button>
+                <input id="volumeSlider" type="range" min="0" max="1" step="0.05" value="0.85" class="cinema-slider w-16 sm:w-20 bg-white/20 rounded-full h-1" />
+              </div>
+            </div>
+
+            <!-- Right Controls Group -->
+            <div class="flex items-center gap-1.5 sm:gap-2.5">
+              <!-- Marathon Auto-Play Toggle -->
+              <button id="autoPlayToggle" title="Auto-Play Next Movie Part" class="px-2.5 py-1.5 rounded-lg text-xs font-medium border border-gold/40 bg-gold/15 text-gold-light flex items-center gap-1.5 transition cursor-pointer">
+                <span id="autoPlayDot" class="w-2 h-2 rounded-full bg-gold-light animate-pulse"></span>
+                <span class="hidden sm:inline">Marathon Auto-Next</span>
+                <span class="sm:hidden">Auto</span>
+              </button>
+
+              <!-- Playback Speed Selector -->
+              <select id="speedSelect" title="Playback Speed" class="bg-black/70 text-slate-200 text-xs font-medium border border-white/15 rounded-lg px-2 py-1.5 focus:outline-none focus:border-gold cursor-pointer">
+                <option value="0.75">0.75x</option>
+                <option value="1" selected>1.0x</option>
+                <option value="1.25">1.25x</option>
+                <option value="1.5">1.5x</option>
+                <option value="2">2.0x</option>
+              </select>
+
+              <!-- Mark Watched Toggle -->
+              <button id="markWatchedBtn" title="Mark Film as Watched" class="px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-slate-200 text-xs font-medium border border-white/10 transition cursor-pointer">
+                ✓ Watched
+              </button>
+
+              <!-- Theater Mode -->
+              <button id="theaterBtn" title="Theater Mode (T)" class="p-2 rounded-lg text-slate-200 hover:text-gold-light hover:bg-white/10 transition cursor-pointer hidden md:inline-flex">
+                <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <rect x="3" y="5" width="18" height="14" rx="2" />
+                </svg>
+              </button>
+
+              <!-- Picture in Picture -->
+              <button id="pipBtn" title="Picture-in-Picture" class="p-2 rounded-lg text-slate-200 hover:text-gold-light hover:bg-white/10 transition cursor-pointer hidden sm:inline-flex">
+                <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+              </button>
+
+              <!-- Fullscreen -->
+              <button id="fullscreenBtn" title="Fullscreen (F)" class="p-2 rounded-lg text-slate-200 hover:text-gold-light hover:bg-white/10 transition cursor-pointer">
+                <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Source Switcher, Subtitles & Drive Link Action Bar -->
+      <div class="bg-midnight/90 backdrop-blur-md rounded-2xl p-3.5 sm:p-4 gold-border flex flex-col gap-3 theater-dim">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <!-- 3-Mode Source Switcher Tabs -->
+          <div class="flex flex-wrap items-center gap-1.5 bg-obsidian/90 p-1 rounded-xl border border-gold/20">
+            <button id="modeDriveBtn" class="px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer">
+              <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M7.71 3.5L1.15 15l3.43 6 6.55-11.5L7.71 3.5zm1.72 0l6.56 11.5h6.86L16.29 3.5H9.43zm6.28 12.5H2.57L6 22h13.14l3.43-6h-6.86z" />
+              </svg>
+              <span>Cloud Stream (Drive)</span>
+            </button>
+            <button id="modeLocalBtn" class="px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4" />
+              </svg>
+              <span>Local Video + Subtitles</span>
+            </button>
+            <button id="modePreviewBtn" class="px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer">
+              <span>✨</span>
+              <span>Magical Preview</span>
+            </button>
+          </div>
+
+          <!-- Action Buttons: Subtitles, Open in Drive, Paste Drive Link, Prev/Next -->
+          <div class="flex flex-wrap items-center gap-2">
+            <a
+              id="getSubtitlesLink"
+              href="#"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-gold-light border border-gold/40 text-xs font-semibold flex items-center gap-1.5 transition"
+            >
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+              </svg>
+              <span>Get Subtitles (.SRT) ↗</span>
+            </a>
+
+            <button id="loadSubtitleBtn" class="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 text-slate-200 border border-white/15 text-xs font-medium flex items-center gap-1.5 transition cursor-pointer">
+              <span>CC</span>
+              <span id="subtitleStatusLabel">Load .SRT / .VTT</span>
+            </button>
+
+            <a
+              id="openDriveTabLink"
+              href="#"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="px-3 py-1.5 rounded-xl bg-sky-500/15 hover:bg-sky-500/25 text-sky-300 border border-sky-400/35 text-xs font-medium flex items-center gap-1.5 transition"
+            >
+              <span>Open in Google Drive ↗</span>
+            </a>
+
+            <button id="quickNextFilmBtn" class="px-3 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-400/35 text-xs font-semibold flex items-center gap-1 transition cursor-pointer">
+              <span>Next Film &rarr;</span>
+            </button>
+
+            <button id="togglePasteDriveBtn" class="px-3 py-1.5 rounded-xl bg-gold/20 hover:bg-gold/30 text-gold-light border border-gold/45 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer">
+              <span>Edit Drive Link</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Inline Paste Google Drive Link Drawer -->
+        <div id="pasteDriveDrawer" class="hidden pt-3 border-t border-gold/15 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+          <div class="flex-1 relative">
+            <input
+              id="driveLinkInput"
+              type="text"
+              placeholder="Paste Google Drive link (e.g. https://drive.google.com/file/d/FILE_ID/view) for this part..."
+              class="w-full bg-obsidian border border-gold/35 focus:border-gold-light rounded-xl px-3.5 py-2 text-xs text-parchment placeholder-slate-500 focus:outline-none"
+            />
+          </div>
+          <div class="flex items-center gap-2">
+            <button id="saveDriveLinkBtn" class="px-4 py-2 rounded-xl bg-gold hover:bg-gold-light text-obsidian font-semibold text-xs transition cursor-pointer">
+              Save &amp; Stream
+            </button>
+            <button id="closeDriveDrawerBtn" class="px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 text-xs transition cursor-pointer">
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Movie Information & Interactive Scene Chapters Card -->
+      <div class="bg-midnight/85 backdrop-blur-md rounded-2xl p-5 sm:p-6 gold-border theater-dim">
+        <div class="flex flex-col md:flex-row md:items-start justify-between gap-4 pb-5 border-b border-gold/15">
+          <div class="flex items-start gap-4">
+            <!-- Dynamic Movie Crest Container -->
+            <div id="detailMovieCrest" class="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex-shrink-0 flex items-center justify-center border border-gold/40 bg-obsidian shadow-inner"></div>
+            <div>
+              <div class="flex flex-wrap items-center gap-2 text-xs text-gold font-medium mb-1">
+                <span id="detailPartLabel">PART I</span>
+                <span>&bull;</span>
+                <span id="detailYear">2001</span>
+                <span>&bull;</span>
+                <span id="detailRuntime">2h 32m</span>
+                <span>&bull;</span>
+                <span id="detailDirector" class="text-slate-300">Directed by Chris Columbus</span>
+              </div>
+              <h3 id="detailTitle" class="font-display text-xl sm:text-2xl font-bold text-parchment">
+                Harry Potter and the Sorcerer's Stone
+              </h3>
+              <p id="detailTagline" class="font-serif italic text-base sm:text-lg text-gold-light/90 mt-0.5">
+                "Let the magic begin."
+              </p>
+            </div>
+          </div>
+
+          <!-- Local File Status & Action -->
+          <div class="flex flex-col sm:flex-row md:flex-col items-stretch sm:items-center md:items-end gap-2 flex-shrink-0">
+            <button id="detailUploadBtn" class="px-4 py-2 rounded-xl bg-gold/15 hover:bg-gold/25 text-gold-light border border-gold/40 text-xs font-semibold flex items-center justify-center gap-2 transition cursor-pointer">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+              </svg>
+              <span>Attach Local Video File</span>
+            </button>
+            <span id="loadedFileName" class="text-[11px] text-slate-400 truncate max-w-[220px]">
+              Using Interactive Magical Preview
+            </span>
+          </div>
+        </div>
+
+        <!-- Synopsis -->
+        <p id="detailSynopsis" class="text-sm sm:text-base text-slate-300 leading-relaxed mt-4">
+          On his eleventh birthday, Harry Potter discovers that he is the orphaned son of two powerful wizards and possesses unique magical powers of his own. Summoned to attend Hogwarts School of Witchcraft and Wizardry, he uncovers the truth about his parents' deaths and a dark power hidden inside the castle.
+        </p>
+
+        <!-- Iconic Scene Chapters (Jump to timestamp) -->
+        <div class="mt-5">
+          <div class="flex items-center justify-between mb-2.5">
+            <h4 class="text-xs font-display uppercase tracking-widest text-gold font-semibold">
+              Iconic Chapters &amp; Key Moments
+            </h4>
+            <span class="text-[11px] text-slate-400">Click a chapter to jump</span>
+          </div>
+          <div id="chapterPillsContainer" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5">
+            <!-- Populated dynamically via JS -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- RIGHT / SECONDARY COLUMN: Complete 8-Film Collection Queue -->
+    <aside id="playlistColumn" class="lg:col-span-4 flex flex-col gap-4 theater-dim">
+      <div class="bg-midnight/90 backdrop-blur-md rounded-2xl p-4 sm:p-5 gold-border flex flex-col h-full">
+        <div class="flex items-center justify-between pb-3.5 mb-3.5 border-b border-gold/20">
+          <div>
+            <h3 class="font-display text-base sm:text-lg font-bold text-gold-light tracking-wide">
+              8-Part Saga Playlist
+            </h3>
+            <p class="text-xs text-slate-400">Select any part or drop local files onto cards</p>
+          </div>
+          <span id="driveLinkedCountBadge" class="px-2.5 py-1 rounded-lg bg-sky-500/15 border border-sky-400/35 text-sky-300 text-xs font-semibold">
+            8/8 Drive Linked
+          </span>
+        </div>
+
+        <!-- Movie List Container -->
+        <div id="moviePlaylistContainer" class="flex flex-col gap-2.5 overflow-y-auto pr-1 max-h-[780px]">
+          <!-- Rendered dynamically via JS -->
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <script>
+    /**
+     * =========================================================================
+     * WIZARDING WORLD CINEMA — 8-FILM MARATHON PLAYER ENGINE
+     * =========================================================================
+     */
+
+    // Helper: Convert any Google Drive /view, /edit, or id URL into clean /preview & /view URLs
+    function parseGoogleDriveUrl(rawInput) {
+      if (!rawInput || typeof rawInput !== 'string') return null;
+      const trimmed = rawInput.trim();
+      if (!trimmed) return null;
+
+      // Match /file/d/<ID> or id=<ID>
+      const fileMatch = trimmed.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+      const idParamMatch = trimmed.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+      const fileId = fileMatch ? fileMatch[1] : idParamMatch ? idParamMatch[1] : null;
+
+      if (fileId) {
+        return {
+          id: fileId,
+          previewUrl: `https://drive.google.com/file/d/${fileId}/preview`,
+          viewUrl: `https://drive.google.com/file/d/${fileId}/view`,
+        };
+      }
+
+      // Fallback if user pasted a direct embed or video URL
+      if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+        return {
+          id: null,
+          previewUrl: trimmed.replace(/\/view(\?.*)?$/, '/preview'),
+          viewUrl: trimmed,
+        };
+      }
+      return null;
+    }
+
+    // 1. Complete Metadata for all 8 Harry Potter Films (Parts 1–8 Pre-Linked!)
+    const MOVIES = [
+      {
+        id: 1,
+        roman: 'I',
+        title: "Harry Potter and the Sorcerer's Stone",
+        shortTitle: "The Sorcerer's Stone",
+        year: 2001,
+        runtimeStr: '2h 32m',
+        durationSec: 9120,
+        director: 'Chris Columbus',
+        tagline: 'Let the magic begin.',
+        defaultDriveUrl: 'https://drive.google.com/file/d/1-3RLQf-MC3EakUPOk8x9-Q9QhkJELaho/view',
+        subtitlePageUrl: 'https://yifysubtitles.org/subtitles/harry-potter-and-the-sorcerers-stone-2001-english-yify-115201',
+        accentPrimary: '#d4af37',
+        accentSecondary: '#7f1d1d',
+        bgGradient: ['#1e130c', '#3d1c0c', '#090b12'],
+        spell: 'Wingardium Leviosa',
+        synopsis:
+          "Rescued from the outrageous neglect of his aunt and uncle, a young boy with a great destiny proves his worth while attending Hogwarts School of Witchcraft and Wizardry, uncovering the secret of the Sorcerer's Stone.",
+        chapters: [
+          { title: 'The Boy Who Lived', pct: 0.02 },
+          { title: 'Diagon Alley & Ollivanders', pct: 0.24 },
+          { title: 'The Sorting Hat Ceremony', pct: 0.42 },
+          { title: 'Through the Trapdoor', pct: 0.78 },
+        ],
+        svgCrest: `<svg viewBox="0 0 24 24" class="w-7 h-7" fill="none" stroke="#f3d574" stroke-width="1.6"><polygon points="12 2 19 9 12 22 5 9 12 2"/><line x1="5" y1="9" x2="19" y2="9"/></svg>`,
+      },
+      {
+        id: 2,
+        roman: 'II',
+        title: 'Harry Potter and the Chamber of Secrets',
+        shortTitle: 'The Chamber of Secrets',
+        year: 2002,
+        runtimeStr: '2h 41m',
+        durationSec: 9660,
+        director: 'Chris Columbus',
+        tagline: 'Hogwarts is back in session.',
+        defaultDriveUrl: 'https://drive.google.com/file/d/1uDn2s0_Q18si6svXTEz5--7-Hmzid-Z0/view',
+        subtitlePageUrl: 'https://yts-subs.com/subtitles/harry-potter-and-the-chamber-of-secrets-english-yify-573',
+        accentPrimary: '#34d399',
+        accentSecondary: '#064e3b',
+        bgGradient: ['#061a14', '#0d3326', '#070a10'],
+        spell: 'Rictusempra',
+        synopsis:
+          'An ancient prophecy seems to be coming true when a mysterious presence begins stalking the corridors of a school of magic and leaving its victims paralyzed. Harry must uncover the heir of Slytherin.',
+        chapters: [
+          { title: "Dobby's Warning", pct: 0.04 },
+          { title: 'The Flying Ford Anglia', pct: 0.19 },
+          { title: "Tom Riddle's Diary", pct: 0.55 },
+          { title: 'Slaying the Basilisk', pct: 0.81 },
+        ],
+        svgCrest: `<svg viewBox="0 0 24 24" class="w-7 h-7" fill="none" stroke="#34d399" stroke-width="1.6"><path d="M12 3c4 0 7 3 7 7 0 5-7 11-7 11S5 15 5 10c0-4 3-7 7-7z"/><circle cx="12" cy="10" r="2.5"/></svg>`,
+      },
+      {
+        id: 3,
+        roman: 'III',
+        title: 'Harry Potter and the Prisoner of Azkaban',
+        shortTitle: 'The Prisoner of Azkaban',
+        year: 2004,
+        runtimeStr: '2h 22m',
+        durationSec: 8520,
+        director: 'Alfonso Cuarón',
+        tagline: 'Something wicked this way comes.',
+        defaultDriveUrl: 'https://drive.google.com/file/d/14L5mo1pddYEoO_2QrW-P5vpxSf2UCXJT/view',
+        subtitlePageUrl: 'https://yts-subs.com/subtitles/harry-potter-and-the-prisoner-of-azkaban-english-yify-574',
+        accentPrimary: '#60a5fa',
+        accentSecondary: '#1e3a8a',
+        bgGradient: ['#091326', '#152847', '#07090f'],
+        spell: 'Expecto Patronum',
+        synopsis:
+          'Harry Potter, Ron and Hermione return to Hogwarts School of Witchcraft and Wizardry for their third year of study, where they delve into the mystery surrounding an escaped prisoner who poses a dangerous threat.',
+        chapters: [
+          { title: 'The Knight Bus', pct: 0.08 },
+          { title: 'Flight on Buckbeak', pct: 0.28 },
+          { title: 'The Marauder’s Map', pct: 0.48 },
+          { title: 'Patronus by the Lake', pct: 0.79 },
+        ],
+        svgCrest: `<svg viewBox="0 0 24 24" class="w-7 h-7" fill="none" stroke="#60a5fa" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><path d="M12 3v4M12 17v4M3 12h4M17 12h4"/></svg>`,
+      },
+      {
+        id: 4,
+        roman: 'IV',
+        title: 'Harry Potter and the Goblet of Fire',
+        shortTitle: 'The Goblet of Fire',
+        year: 2005,
+        runtimeStr: '2h 37m',
+        durationSec: 9420,
+        director: 'Mike Newell',
+        tagline: 'Dark and difficult times lie ahead.',
+        defaultDriveUrl: 'https://drive.google.com/file/d/1B7_2QWj_Djd-TqMFcHqBs5hmTezGgVUO/view',
+        subtitlePageUrl: 'https://yts-subs.com/subtitles/harry-potter-and-the-goblet-of-fire-english-yify-577',
+        accentPrimary: '#fb923c',
+        accentSecondary: '#7c2d12',
+        bgGradient: ['#1f1008', '#431d0c', '#08090f'],
+        spell: 'Accio Firebolt',
+        synopsis:
+          'Harry Potter finds himself competing in a hazardous tournament between rival schools of magic, but he is distracted by recurring nightmares and the terrifying return of Lord Voldemort.',
+        chapters: [
+          { title: 'Quidditch World Cup', pct: 0.05 },
+          { title: 'The Hungarian Horntail', pct: 0.36 },
+          { title: 'The Yule Ball', pct: 0.52 },
+          { title: 'Little Hangleton Graveyard', pct: 0.82 },
+        ],
+        svgCrest: `<svg viewBox="0 0 24 24" class="w-7 h-7" fill="none" stroke="#fb923c" stroke-width="1.6"><path d="M8 3h8l-1 8a3 3 0 01-6 0L8 3z"/><path d="M12 14v5M8 21h8"/></svg>`,
+      },
+      {
+        id: 5,
+        roman: 'V',
+        title: 'Harry Potter and the Order of the Phoenix',
+        shortTitle: 'The Order of the Phoenix',
+        year: 2007,
+        runtimeStr: '2h 18m',
+        durationSec: 8280,
+        director: 'David Yates',
+        tagline: 'The rebellion begins.',
+        defaultDriveUrl: 'https://drive.google.com/file/d/1gFxQ7F_iYdr088SVBjIaus7IIB1CCfog/view',
+        subtitlePageUrl: 'https://yts-subs.com/subtitles/harry-potter-and-the-order-of-the-phoenix-english-yify-578',
+        accentPrimary: '#818cf8',
+        accentSecondary: '#312e81',
+        bgGradient: ['#0c0e24', '#1d2252', '#07080e'],
+        spell: 'Stupefy',
+        synopsis:
+          'With their warning about Lord Voldemort’s return scoffed at, Harry and Dumbledore are targeted by the Wizard authorities as an authoritarian bureaucrat slowly seizes power at Hogwarts.',
+        chapters: [
+          { title: '12 Grimmauld Place', pct: 0.14 },
+          { title: "Dumbledore's Army", pct: 0.44 },
+          { title: 'Department of Mysteries', pct: 0.74 },
+          { title: 'Dumbledore vs. Voldemort', pct: 0.87 },
+        ],
+        svgCrest: `<svg viewBox="0 0 24 24" class="w-7 h-7" fill="none" stroke="#818cf8" stroke-width="1.6"><path d="M12 2c2 4 6 5 6 10a6 6 0 01-12 0c0-5 4-6 6-10z"/><path d="M12 10v8"/></svg>`,
+      },
+      {
+        id: 6,
+        roman: 'VI',
+        title: 'Harry Potter and the Half-Blood Prince',
+        shortTitle: 'The Half-Blood Prince',
+        year: 2009,
+        runtimeStr: '2h 33m',
+        durationSec: 9180,
+        director: 'David Yates',
+        tagline: 'Dark secrets revealed.',
+        defaultDriveUrl: 'https://drive.google.com/file/d/11_mFxbzdOOko8fbH8VEhu5qp54Qdb-L0/view',
+        subtitlePageUrl: 'https://yts-subs.com/subtitles/harry-potter-and-the-half-blood-prince-english-yify-580',
+        accentPrimary: '#a3e635',
+        accentSecondary: '#365314',
+        bgGradient: ['#0d170c', '#1e331b', '#07090d'],
+        spell: 'Sectumsempra',
+        synopsis:
+          'As Harry Potter begins his sixth year at Hogwarts, he discovers an old book marked as "the property of the Half-Blood Prince" and begins to learn more about Lord Voldemort’s dark past and Horcruxes.',
+        chapters: [
+          { title: 'The Unbreakable Vow', pct: 0.06 },
+          { title: 'Felix Felicis Potion', pct: 0.49 },
+          { title: 'The Sea Cave Horcrux', pct: 0.76 },
+          { title: 'The Astronomy Tower', pct: 0.88 },
+        ],
+        svgCrest: `<svg viewBox="0 0 24 24" class="w-7 h-7" fill="none" stroke="#a3e635" stroke-width="1.6"><path d="M9 3h6v4l3 5v7a2 2 0 01-2 2H8a2 2 0 01-2-2v-7l3-5V3z"/></svg>`,
+      },
+      {
+        id: 7,
+        roman: 'VII',
+        title: 'Harry Potter and the Deathly Hallows – Part 1',
+        shortTitle: 'Deathly Hallows – Part 1',
+        year: 2010,
+        runtimeStr: '2h 26m',
+        durationSec: 8760,
+        director: 'David Yates',
+        tagline: 'Nowhere is safe.',
+        defaultDriveUrl: 'https://drive.google.com/file/d/19w8C4ArAIzsGcj1weAluyfRKIsthrRR2/view',
+        subtitlePageUrl: 'https://yts-subs.com/subtitles/harry-potter-and-the-deathly-hallows-part-1-english-yify-584',
+        accentPrimary: '#cbd5e1',
+        accentSecondary: '#334155',
+        bgGradient: ['#0f1319', '#1e2631', '#06080c'],
+        spell: 'Protego Totalum',
+        synopsis:
+          'As Harry, Ron and Hermione race against time and evil to destroy the Horcruxes, they uncover the existence of the three most powerful objects in the wizarding world: the Deathly Hallows.',
+        chapters: [
+          { title: 'The Seven Potters', pct: 0.08 },
+          { title: 'Infiltrating the Ministry', pct: 0.35 },
+          { title: 'The Tale of the Three Brothers', pct: 0.68 },
+          { title: 'Malfoy Manor Escape', pct: 0.85 },
+        ],
+        svgCrest: `<svg viewBox="0 0 24 24" class="w-7 h-7" fill="none" stroke="#e2e8f0" stroke-width="1.6"><path d="M12 3L2 20h20L12 3z"/><circle cx="12" cy="14" r="3.5"/><line x1="12" y1="3" x2="12" y2="20"/></svg>`,
+      },
+      {
+        id: 8,
+        roman: 'VIII',
+        title: 'Harry Potter and the Deathly Hallows – Part 2',
+        shortTitle: 'Deathly Hallows – Part 2',
+        year: 2011,
+        runtimeStr: '2h 10m',
+        durationSec: 7800,
+        director: 'David Yates',
+        tagline: 'It all ends.',
+        defaultDriveUrl: 'https://drive.google.com/file/d/1bp_G-w7lW1mV1FPauta3BcYGXFGsgl4P/view',
+        subtitlePageUrl: 'https://yts-subs.com/subtitles/harry-potter-and-the-deathly-hallows-part-2-english-yify-853',
+        accentPrimary: '#f3d574',
+        accentSecondary: '#991b1b',
+        bgGradient: ['#1a0b0b', '#381515', '#06070c'],
+        spell: 'Expelliarmus',
+        synopsis:
+          'Harry, Ron, and Hermione search for Voldemort’s remaining Horcruxes in their effort to destroy the Dark Lord as the final epic battle rages on at Hogwarts.',
+        chapters: [
+          { title: 'Gringotts Dragon Escape', pct: 0.16 },
+          { title: 'The Battle of Hogwarts', pct: 0.44 },
+          { title: "The Prince's Tale", pct: 0.67 },
+          { title: 'The Final Duel', pct: 0.86 },
+        ],
+        svgCrest: `<svg viewBox="0 0 24 24" class="w-7 h-7" fill="none" stroke="#f3d574" stroke-width="1.7"><path d="M12 2L2 20h20L12 2z"/><circle cx="12" cy="14" r="3.8"/><line x1="12" y1="2" x2="12" y2="20"/><circle cx="12" cy="14" r="1" fill="#f3d574"/></svg>`,
+      },
+    ];
+
+    // 2. Application State
+    const state = {
+      currentIndex: 0,
+      activeSourceMode: 'drive',
+      isPlaying: false,
+      autoPlayNext: true,
+      theaterMode: false,
+      ambientChimeOn: false,
+      loadedFiles: {},
+      loadedSubtitles: {},
+      simTime: 0,
+      lastFrameTs: 0,
+      upNextTimer: null,
+      upNextSeconds: 5,
+      progress: loadSavedProgress(),
+      uploadTargetIndex: 0,
+    };
+
+    function loadSavedProgress() {
+      try {
+        const raw = localStorage.getItem('hp_marathon_progress_v2');
+        return raw ? JSON.parse(raw) : { watched: {}, timestamps: {}, customDriveUrls: {} };
+      } catch (e) {
+        return { watched: {}, timestamps: {}, customDriveUrls: {} };
+      }
+    }
+
+    function saveProgress() {
+      try {
+        localStorage.setItem('hp_marathon_progress_v2', JSON.stringify(state.progress));
+      } catch (e) {
+        // Ignore storage quota errors
+      }
+    }
+
+    function getMovieDriveInfo(movie) {
+      const customUrl = state.progress.customDriveUrls?.[movie.id];
+      const rawUrl = customUrl !== undefined ? customUrl : movie.defaultDriveUrl;
+      return parseGoogleDriveUrl(rawUrl);
+    }
+
+    // 3. DOM References
+    const driveIframe = document.getElementById('driveIframe');
+    const nativeVideo = document.getElementById('nativeVideo');
+    const previewCanvas = document.getElementById('previewCanvas');
+    const previewCtx = previewCanvas.getContext('2d');
+    const cinemaContainer = document.getElementById('cinemaContainer');
+    const topOverlay = document.getElementById('topOverlay');
+    const bottomControls = document.getElementById('bottomControls');
+
+    const playPauseBtn = document.getElementById('playPauseBtn');
+    const playPauseIcon = document.getElementById('playPauseIcon');
+    const centerPlayOverlay = document.getElementById('centerPlayOverlay');
+    const centerPlayIcon = document.getElementById('centerPlayIcon');
+    const seekSlider = document.getElementById('seekSlider');
+    const seekFill = document.getElementById('seekFill');
+    const currentTimeText = document.getElementById('currentTimeText');
+    const durationTimeText = document.getElementById('durationTimeText');
+    const volumeSlider = document.getElementById('volumeSlider');
+    const muteBtn = document.getElementById('muteBtn');
+    const speedSelect = document.getElementById('speedSelect');
+
+    const singleFileInput = document.getElementById('singleFileInput');
+    const bulkFileInput = document.getElementById('bulkFileInput');
+    const subtitleFileInput = document.getElementById('subtitleFileInput');
+
+    // 4. Utility Helpers: Time Formatter & Toast Notification (Replaces alert())
+    function formatTime(totalSeconds) {
+      if (!isFinite(totalSeconds) || totalSeconds < 0) return '00:00';
+      const sec = Math.floor(totalSeconds);
+      const hrs = Math.floor(sec / 3600);
+      const mins = Math.floor((sec % 3600) / 60);
+      const remSec = sec % 60;
+      const pad = (n) => String(n).padStart(2, '0');
+      return hrs > 0 ? `${pad(hrs)}:${pad(mins)}:${pad(remSec)}` : `${pad(mins)}:${pad(remSec)}`;
+    }
+
+    function showToast(title, message, tone = 'gold') {
+      const container = document.getElementById('toastContainer');
+      if (!container) return;
+      const borderClass =
+        tone === 'emerald'
+          ? 'border-emerald-400/50 text-emerald-300'
+          : 'border-gold/50 text-gold-light';
+
+      const toast = document.createElement('div');
+      toast.className = `pointer-events-auto bg-obsidian/95 backdrop-blur-md border ${borderClass} rounded-xl px-4 py-3 shadow-2xl transition-all duration-300 translate-y-2 opacity-0`;
+      toast.innerHTML = `
+        <div class="font-display text-xs font-bold tracking-wide">${title}</div>
+        <div class="text-xs text-slate-300 mt-0.5">${message}</div>
+      `;
+      container.appendChild(toast);
+
+      requestAnimationFrame(() => {
+        toast.classList.remove('translate-y-2', 'opacity-0');
+      });
+
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-2');
+        setTimeout(() => toast.remove(), 300);
+      }, 3600);
+    }
+
+    // 5. Magical Ambient Celesta Chime Synthesizer (Web Audio API)
+    let audioCtx = null;
+    let chimeTimer = null;
+
+    function playCelestaNote() {
+      if (!state.ambientChimeOn) return;
+      try {
+        if (!audioCtx) {
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+
+        const notes = [659.25, 783.99, 739.99, 987.77, 1174.66, 1046.5, 880.0];
+        const freq = notes[Math.floor(Math.random() * notes.length)];
+
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+
+        gain.gain.setValueAtTime(0.0001, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.04, audioCtx.currentTime + 0.08);
+        gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 2.4);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 2.5);
+      } catch (e) {
+        // Ignore audio policy restrictions until user interacts
+      }
+    }
+
+    document.getElementById('ambientSoundToggle').addEventListener('click', () => {
+      state.ambientChimeOn = !state.ambientChimeOn;
+      const icon = document.getElementById('ambientSoundIcon');
+      if (state.ambientChimeOn) {
+        icon.textContent = '🔊';
+        playCelestaNote();
+        chimeTimer = setInterval(playCelestaNote, 2600);
+        showToast('Ambient Celesta ON', 'Soft wizarding chimes enabled.');
+      } else {
+        icon.textContent = '🔇';
+        if (chimeTimer) clearInterval(chimeTimer);
+      }
+    });
+
+    // 7. Core Playback Engine (Handles Cloud Drive, Local Video + Subtitles, & Magical Preview)
+    function isCurrentMovieDrive() {
+      return state.activeSourceMode === 'drive' && Boolean(getMovieDriveInfo(MOVIES[state.currentIndex]));
+    }
+
+    function isCurrentMovieLocal() {
+      const movie = MOVIES[state.currentIndex];
+      return state.activeSourceMode === 'local' && Boolean(state.loadedFiles[movie.id]);
+    }
+
+    function getCurrentDuration() {
+      if (isCurrentMovieLocal() && isFinite(nativeVideo.duration) && nativeVideo.duration > 0) {
+        return nativeVideo.duration;
+      }
+      return MOVIES[state.currentIndex].durationSec;
+    }
+
+    function getCurrentTime() {
+      if (isCurrentMovieLocal()) {
+        return nativeVideo.currentTime || 0;
+      }
+      return state.simTime;
+    }
+
+    function seekTo(seconds) {
+      const dur = getCurrentDuration();
+      const clamped = Math.max(0, Math.min(seconds, dur));
+      if (isCurrentMovieLocal()) {
+        nativeVideo.currentTime = clamped;
+      } else {
+        state.simTime = clamped;
+      }
+      updateTimelineUI();
+    }
+
+    function playMedia() {
+      cancelUpNextCountdown();
+      if (isCurrentMovieDrive()) return;
+      state.isPlaying = true;
+      if (isCurrentMovieLocal()) {
+        nativeVideo.play().catch(() => {
+          state.isPlaying = false;
+          updatePlayButtonsUI();
+        });
+      }
+      updatePlayButtonsUI();
+    }
+
+    function pauseMedia() {
+      state.isPlaying = false;
+      if (isCurrentMovieLocal()) {
+        nativeVideo.pause();
+      }
+      updatePlayButtonsUI();
+    }
+
+    function togglePlayPause() {
+      if (isCurrentMovieDrive()) return;
+      if (state.isPlaying) {
+        pauseMedia();
+      } else {
+        playMedia();
+      }
+    }
+
+    function updatePlayButtonsUI() {
+      if (isCurrentMovieDrive()) {
+        centerPlayOverlay.classList.add('opacity-0', 'pointer-events-none');
+        return;
+      }
+      const playSvg = `<path d="M8 5v14l11-7z" />`;
+      const pauseSvg = `<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />`;
+      playPauseIcon.innerHTML = state.isPlaying ? pauseSvg : playSvg;
+      centerPlayIcon.innerHTML = state.isPlaying ? pauseSvg : playSvg;
+      centerPlayOverlay.classList.toggle('opacity-0', state.isPlaying);
+      centerPlayOverlay.classList.toggle('pointer-events-none', state.isPlaying);
+    }
+
+    function updateTimelineUI() {
+      const cur = getCurrentTime();
+      const dur = getCurrentDuration();
+      const pct = dur > 0 ? (cur / dur) * 100 : 0;
+
+      seekSlider.value = pct;
+      seekFill.style.width = `${pct}%`;
+      currentTimeText.textContent = formatTime(cur);
+      durationTimeText.textContent = formatTime(dur);
+
+      const movie = MOVIES[state.currentIndex];
+      state.progress.timestamps[movie.id] = cur;
+      if (pct >= 95 && !state.progress.watched[movie.id]) {
+        state.progress.watched[movie.id] = true;
+        saveProgress();
+        renderPlaylist();
+        updateMarathonHeader();
+      }
+    }
+
+    // 7b. SRT -> WebVTT Subtitle Converter & Track Attachment
+    function srtToWebVtt(srtText) {
+      const normalized = srtText.replace(/\r+/g, '').trim();
+      const vttBody = normalized.replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g, '$1.$2');
+      return `WEBVTT\n\n${vttBody}\n`;
+    }
+
+    function attachSubtitleTrackToVideo(movieId) {
+      Array.from(nativeVideo.querySelectorAll('track')).forEach((t) => t.remove());
+      const subData = state.loadedSubtitles[movieId];
+      const subLabel = document.getElementById('subtitleStatusLabel');
+      if (subData) {
+        const track = document.createElement('track');
+        track.kind = 'subtitles';
+        track.label = 'English';
+        track.srclang = 'en';
+        track.src = subData.url;
+        track.default = true;
+        nativeVideo.appendChild(track);
+        if (nativeVideo.textTracks && nativeVideo.textTracks[0]) {
+          nativeVideo.textTracks[0].mode = 'showing';
+        }
+        subLabel.textContent = `CC: ${subData.name.slice(0, 16)}...`;
+      } else {
+        subLabel.textContent = 'Load .SRT / .VTT';
+      }
+    }
+
+    // 8. Select & Load Movie Chapter
+    function selectMovie(index, autoStart = false, forcedMode = null) {
+      cancelUpNextCountdown();
+      state.currentIndex = index;
+      const movie = MOVIES[index];
+      const driveInfo = getMovieDriveInfo(movie);
+      const fileData = state.loadedFiles[movie.id];
+
+      if (forcedMode) {
+        state.activeSourceMode = forcedMode;
+      } else if (fileData) {
+        state.activeSourceMode = 'local';
+      } else if (driveInfo) {
+        state.activeSourceMode = 'drive';
+      } else {
+        state.activeSourceMode = 'preview';
+      }
+
+      document.getElementById('stagePartBadge').textContent = `Part ${movie.id} of 8`;
+      document.getElementById('stageMovieTitle').textContent = movie.title;
+
+      const subLinkEl = document.getElementById('getSubtitlesLink');
+      subLinkEl.href = movie.subtitlePageUrl;
+
+      const openDriveLinkEl = document.getElementById('openDriveTabLink');
+      if (driveInfo) {
+        openDriveLinkEl.href = driveInfo.viewUrl;
+        openDriveLinkEl.classList.remove('opacity-40', 'pointer-events-none');
+      } else {
+        openDriveLinkEl.href = '#';
+        openDriveLinkEl.classList.add('opacity-40', 'pointer-events-none');
+      }
+
+      document.getElementById('detailMovieCrest').innerHTML = movie.svgCrest;
+      document.getElementById('detailPartLabel').textContent = `PART ${movie.roman}`;
+      document.getElementById('detailYear').textContent = movie.year;
+      document.getElementById('detailRuntime').textContent = movie.runtimeStr;
+      document.getElementById('detailDirector').textContent = `Directed by ${movie.director}`;
+      document.getElementById('detailTitle').textContent = movie.title;
+      document.getElementById('detailTagline').textContent = `"${movie.tagline}"`;
+      document.getElementById('detailSynopsis').textContent = movie.synopsis;
+
+      const chapterContainer = document.getElementById('chapterPillsContainer');
+      chapterContainer.innerHTML = movie.chapters
+        .map((ch, idx) => {
+          const targetSec = Math.floor(movie.durationSec * ch.pct);
+          return `
+            <button data-pct="${ch.pct}" class="chapter-pill text-left p-2.5 rounded-xl bg-obsidian/80 hover:bg-gold/15 border border-gold/20 hover:border-gold/50 transition cursor-pointer group">
+              <div class="flex items-center justify-between text-[11px] text-gold font-mono mb-0.5">
+                <span>Chapter 0${idx + 1}</span>
+                <span>${formatTime(targetSec)}</span>
+              </div>
+              <div class="text-xs font-medium text-slate-200 group-hover:text-white truncate">${ch.title}</div>
+            </button>
+          `;
+        })
+        .join('');
+
+      document.querySelectorAll('.chapter-pill').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const pct = parseFloat(btn.dataset.pct);
+          if (state.activeSourceMode === 'drive') {
+            selectMovie(state.currentIndex, true, 'preview');
+          }
+          seekTo(getCurrentDuration() * pct);
+          if (!state.isPlaying) playMedia();
+        });
+      });
+
+      const modeBadge = document.getElementById('stageModeBadge');
+      const loadBtnLabel = document.getElementById('loadCurrentBtnLabel');
+      const loadedFileName = document.getElementById('loadedFileName');
+
+      driveIframe.classList.add('hidden');
+      nativeVideo.classList.add('hidden');
+      previewCanvas.classList.add('hidden');
+      bottomControls.classList.remove('hidden');
+      topOverlay.classList.remove('hidden');
+
+      if (state.activeSourceMode === 'drive' && driveInfo) {
+        nativeVideo.pause();
+        state.isPlaying = false;
+        driveIframe.src = driveInfo.previewUrl;
+        driveIframe.classList.remove('hidden');
+
+        bottomControls.classList.add('hidden');
+        topOverlay.classList.add('hidden');
+        centerPlayOverlay.classList.add('opacity-0', 'pointer-events-none');
+
+        modeBadge.textContent = 'Cloud Stream (Google Drive)';
+        modeBadge.className =
+          'px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-sky-950/90 text-sky-200 border border-sky-400/40';
+        loadBtnLabel.textContent = fileData ? 'Replace File' : 'Load Local File';
+        loadedFileName.textContent = `Streaming from Google Drive (Part ${movie.id})`;
+      } else if (state.activeSourceMode === 'local' && fileData) {
+        driveIframe.removeAttribute('src');
+        nativeVideo.classList.remove('hidden');
+        nativeVideo.src = fileData.url;
+        nativeVideo.playbackRate = parseFloat(speedSelect.value);
+        nativeVideo.volume = parseFloat(volumeSlider.value);
+        attachSubtitleTrackToVideo(movie.id);
+
+        const savedPos = state.progress.timestamps[movie.id] || 0;
+        nativeVideo.onloadedmetadata = () => {
+          if (savedPos > 5 && savedPos < nativeVideo.duration - 15) {
+            nativeVideo.currentTime = savedPos;
+          }
+          updateTimelineUI();
+        };
+
+        modeBadge.textContent = 'Local HD Movie + Subtitles';
+        modeBadge.className =
+          'px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-950/90 text-emerald-300 border border-emerald-400/40';
+        loadBtnLabel.textContent = 'Replace File';
+        loadedFileName.textContent = `File: ${fileData.name}`;
+      } else {
+        state.activeSourceMode = 'preview';
+        driveIframe.removeAttribute('src');
+        nativeVideo.pause();
+        nativeVideo.removeAttribute('src');
+        previewCanvas.classList.remove('hidden');
+
+        state.simTime = state.progress.timestamps[movie.id] || 0;
+        modeBadge.textContent = driveInfo
+          ? 'Magical Preview (Drive Link Ready)'
+          : 'Interactive Magical Preview';
+        modeBadge.className =
+          'px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-indigo-950/80 text-indigo-200 border border-indigo-400/30';
+        loadBtnLabel.textContent = 'Load Local File';
+        loadedFileName.textContent = driveInfo
+          ? 'Switch to "Cloud Stream (Drive)" tab to watch online'
+          : 'Paste Drive link or attach local MP4/MKV file';
+      }
+
+      updateSourceTabsUI(Boolean(driveInfo), Boolean(fileData));
+      attachSubtitleTrackToVideo(movie.id);
+
+      const isWatched = Boolean(state.progress.watched[movie.id]);
+      const watchBtn = document.getElementById('markWatchedBtn');
+      watchBtn.textContent = isWatched ? '✓ Completed' : '✓ Mark Watched';
+      watchBtn.className = isWatched
+        ? 'px-2.5 py-1.5 rounded-lg bg-emerald-500/20 text-emerald-300 text-xs font-medium border border-emerald-400/40 transition cursor-pointer'
+        : 'px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-slate-200 text-xs font-medium border border-white/10 transition cursor-pointer';
+
+      renderPlaylist();
+      updateTimelineUI();
+
+      if (autoStart && state.activeSourceMode !== 'drive') {
+        playMedia();
+      } else if (state.activeSourceMode !== 'drive') {
+        pauseMedia();
+      }
+    }
+
+    function updateSourceTabsUI(hasDrive, hasLocal) {
+      const driveTab = document.getElementById('modeDriveBtn');
+      const localTab = document.getElementById('modeLocalBtn');
+      const previewTab = document.getElementById('modePreviewBtn');
+
+      const activeClass = 'bg-gold text-obsidian shadow';
+      const inactiveClass = 'text-slate-300 hover:text-white hover:bg-white/5';
+
+      driveTab.className = `px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer ${
+        state.activeSourceMode === 'drive' ? activeClass : inactiveClass
+      } ${!hasDrive ? 'opacity-60' : ''}`;
+
+      localTab.className = `px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer ${
+        state.activeSourceMode === 'local' ? activeClass : inactiveClass
+      }`;
+
+      previewTab.className = `px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer ${
+        state.activeSourceMode === 'preview' ? activeClass : inactiveClass
+      }`;
+    }
+
+    document.getElementById('modeDriveBtn').addEventListener('click', () => {
+      const movie = MOVIES[state.currentIndex];
+      const driveInfo = getMovieDriveInfo(movie);
+      if (!driveInfo) {
+        document.getElementById('pasteDriveDrawer').classList.remove('hidden');
+        document.getElementById('driveLinkInput').focus();
+        showToast(
+          `No Drive Link Yet for Part ${movie.id}`,
+          'Paste a Google Drive link below to stream this part!'
+        );
+        return;
+      }
+      selectMovie(state.currentIndex, true, 'drive');
+    });
+
+    document.getElementById('modeLocalBtn').addEventListener('click', () => {
+      const movie = MOVIES[state.currentIndex];
+      if (!state.loadedFiles[movie.id]) {
+        openSingleUploadFor(state.currentIndex);
+        return;
+      }
+      selectMovie(state.currentIndex, true, 'local');
+    });
+
+    document.getElementById('modePreviewBtn').addEventListener('click', () => {
+      selectMovie(state.currentIndex, false, 'preview');
+    });
+
+    document.getElementById('togglePasteDriveBtn').addEventListener('click', () => {
+      const drawer = document.getElementById('pasteDriveDrawer');
+      const input = document.getElementById('driveLinkInput');
+      const movie = MOVIES[state.currentIndex];
+      const currentDrive = getMovieDriveInfo(movie);
+      input.value = currentDrive ? currentDrive.viewUrl : '';
+      drawer.classList.toggle('hidden');
+      if (!drawer.classList.contains('hidden')) input.focus();
+    });
+
+    document.getElementById('closeDriveDrawerBtn').addEventListener('click', () => {
+      document.getElementById('pasteDriveDrawer').classList.add('hidden');
+    });
+
+    document.getElementById('saveDriveLinkBtn').addEventListener('click', () => {
+      const rawVal = document.getElementById('driveLinkInput').value;
+      const parsed = parseGoogleDriveUrl(rawVal);
+      if (!parsed) {
+        showToast('Invalid Drive URL', 'Please paste a valid Google Drive file link.');
+        return;
+      }
+      const movie = MOVIES[state.currentIndex];
+      if (!state.progress.customDriveUrls) state.progress.customDriveUrls = {};
+      state.progress.customDriveUrls[movie.id] = parsed.viewUrl;
+      saveProgress();
+      document.getElementById('pasteDriveDrawer').classList.add('hidden');
+      showToast(
+        `Part ${movie.id} Drive Link Saved!`,
+        `Now streaming ${movie.shortTitle} via Google Drive.`,
+        'emerald'
+      );
+      selectMovie(state.currentIndex, true, 'drive');
+    });
+
+    document.getElementById('loadSubtitleBtn').addEventListener('click', () => {
+      subtitleFileInput.value = '';
+      subtitleFileInput.click();
+    });
+
+    subtitleFileInput.addEventListener('change', async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const movie = MOVIES[state.currentIndex];
+      try {
+        const text = await file.text();
+        const vttContent = file.name.toLowerCase().endsWith('.vtt') ? text : srtToWebVtt(text);
+        const blob = new Blob([vttContent], { type: 'text/vtt' });
+        if (state.loadedSubtitles[movie.id]?.url) {
+          URL.revokeObjectURL(state.loadedSubtitles[movie.id].url);
+        }
+        state.loadedSubtitles[movie.id] = {
+          url: URL.createObjectURL(blob),
+          name: file.name,
+        };
+        attachSubtitleTrackToVideo(movie.id);
+        showToast(
+          'Subtitles Attached!',
+          `Loaded "${file.name}". Switch to "Local Video + Subtitles" to view captions on video.`,
+          'emerald'
+        );
+      } catch (err) {
+        showToast('Subtitle Error', 'Could not read the selected subtitle file.');
+      }
+    });
+
+    // 9. Handle Movie Completion & Marathon Auto-Play Countdown
+    function handleMovieEnded() {
+      pauseMedia();
+      const currentMovie = MOVIES[state.currentIndex];
+      state.progress.watched[currentMovie.id] = true;
+      state.progress.timestamps[currentMovie.id] = 0;
+      saveProgress();
+      renderPlaylist();
+      updateMarathonHeader();
+
+      if (state.autoPlayNext && state.currentIndex < MOVIES.length - 1) {
+        startUpNextCountdown();
+      } else if (state.currentIndex === MOVIES.length - 1) {
+        showToast('Marathon Complete! ⚡', 'You have finished all 8 Harry Potter films!');
+      }
+    }
+
+    function startUpNextCountdown() {
+      const nextMovie = MOVIES[state.currentIndex + 1];
+      if (!nextMovie) return;
+
+      const overlay = document.getElementById('upNextOverlay');
+      const titleEl = document.getElementById('upNextTitle');
+      const countEl = document.getElementById('upNextCountdown');
+
+      state.upNextSeconds = 5;
+      titleEl.textContent = `Up Next: Part ${nextMovie.id} — ${nextMovie.shortTitle}`;
+      countEl.textContent = state.upNextSeconds;
+      overlay.classList.remove('hidden');
+
+      state.upNextTimer = setInterval(() => {
+        state.upNextSeconds -= 1;
+        countEl.textContent = state.upNextSeconds;
+        if (state.upNextSeconds <= 0) {
+          cancelUpNextCountdown();
+          selectMovie(state.currentIndex + 1, true);
+        }
+      }, 1000);
+    }
+
+    function cancelUpNextCountdown() {
+      if (state.upNextTimer) {
+        clearInterval(state.upNextTimer);
+        state.upNextTimer = null;
+      }
+      document.getElementById('upNextOverlay').classList.add('hidden');
+    }
+
+    document.getElementById('playNextNowBtn').addEventListener('click', () => {
+      cancelUpNextCountdown();
+      selectMovie(state.currentIndex + 1, true);
+    });
+    document.getElementById('cancelAutoNextBtn').addEventListener('click', cancelUpNextCountdown);
+
+    // 10. Local Video File Loading (Single Slot & Bulk 8-Movie Auto-Assign)
+    function assignFileToMovie(index, file) {
+      if (!file) return;
+      const movie = MOVIES[index];
+      if (state.loadedFiles[movie.id]?.url) {
+        URL.revokeObjectURL(state.loadedFiles[movie.id].url);
+      }
+      const objectUrl = URL.createObjectURL(file);
+      state.loadedFiles[movie.id] = {
+        url: objectUrl,
+        name: file.name,
+      };
+      showToast(
+        `Part ${movie.id} Loaded`,
+        `Assigned "${file.name}" to ${movie.shortTitle}.`,
+        'emerald'
+      );
+      if (index === state.currentIndex) {
+        selectMovie(index, true, 'local');
+      } else {
+        renderPlaylist();
+      }
+    }
+
+    function handleMultipleFiles(fileList) {
+      const files = Array.from(fileList).sort((a, b) =>
+        a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })
+      );
+      if (files.length === 0) return;
+
+      if (files.length === 1) {
+        assignFileToMovie(state.currentIndex, files[0]);
+        return;
+      }
+
+      const count = Math.min(files.length, MOVIES.length);
+      for (let i = 0; i < count; i++) {
+        const movie = MOVIES[i];
+        if (state.loadedFiles[movie.id]?.url) {
+          URL.revokeObjectURL(state.loadedFiles[movie.id].url);
+        }
+        state.loadedFiles[movie.id] = {
+          url: URL.createObjectURL(files[i]),
+          name: files[i].name,
+        };
+      }
+      showToast(
+        `${count} Movie Files Loaded!`,
+        `Auto-assigned Parts 1 through ${count} in chronological order.`,
+        'emerald'
+      );
+      selectMovie(state.currentIndex, true, 'local');
+    }
+
+    function openSingleUploadFor(index) {
+      state.uploadTargetIndex = index;
+      singleFileInput.value = '';
+      singleFileInput.click();
+    }
+
+    singleFileInput.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files[0]) {
+        assignFileToMovie(state.uploadTargetIndex, e.target.files[0]);
+      }
+    });
+
+    bulkFileInput.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files.length > 0) {
+        handleMultipleFiles(e.target.files);
+      }
+    });
+
+    document.getElementById('bulkUploadBtn').addEventListener('click', () => {
+      bulkFileInput.value = '';
+      bulkFileInput.click();
+    });
+
+    document.getElementById('loadCurrentMovieBtn').addEventListener('click', () => {
+      openSingleUploadFor(state.currentIndex);
+    });
+    document.getElementById('detailUploadBtn').addEventListener('click', () => {
+      openSingleUploadFor(state.currentIndex);
+    });
+
+    cinemaContainer.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      document.getElementById('dropHintOverlay').classList.remove('hidden');
+    });
+    cinemaContainer.addEventListener('dragleave', (e) => {
+      if (!cinemaContainer.contains(e.relatedTarget)) {
+        document.getElementById('dropHintOverlay').classList.add('hidden');
+      }
+    });
+    cinemaContainer.addEventListener('drop', (e) => {
+      e.preventDefault();
+      document.getElementById('dropHintOverlay').classList.add('hidden');
+      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        handleMultipleFiles(e.dataTransfer.files);
+      }
+    });
+
+    // 11. Render Right-Hand 8-Movie Collection Playlist
+    function renderPlaylist() {
+      const container = document.getElementById('moviePlaylistContainer');
+      container.innerHTML = MOVIES.map((movie, idx) => {
+        const isActive = idx === state.currentIndex;
+        const isLoaded = Boolean(state.loadedFiles[movie.id]);
+        const hasDrive = Boolean(getMovieDriveInfo(movie));
+        const isWatched = Boolean(state.progress.watched[movie.id]);
+        const savedSec = state.progress.timestamps[movie.id] || 0;
+        const pct = Math.min(100, Math.round((savedSec / movie.durationSec) * 100));
+
+        let statusBadgeHtml = `<span class="text-indigo-300">Preview</span>`;
+        if (isLoaded) {
+          statusBadgeHtml = `<span class="text-emerald-400 font-semibold">Local HD</span>`;
+        } else if (hasDrive) {
+          statusBadgeHtml = `<span class="text-sky-400 font-semibold">Drive Linked</span>`;
+        }
+
+        return `
+          <div
+            data-index="${idx}"
+            class="playlist-card relative p-3 rounded-xl transition-all cursor-pointer select-none ${
+              isActive
+                ? 'bg-gradient-to-r from-gold/20 via-midnight to-obsidian gold-border-active'
+                : 'bg-obsidian/75 hover:bg-obsidian border border-white/10 hover:border-gold/35'
+            }"
+          >
+            <div class="flex items-center gap-3">
+              <!-- Emblem & Part Number -->
+              <div class="relative w-12 h-12 rounded-xl bg-midnight border border-gold/25 flex items-center justify-center flex-shrink-0">
+                ${movie.svgCrest}
+                <span class="absolute -top-1.5 -left-1.5 w-5 h-5 rounded-full bg-obsidian border border-gold/50 text-[10px] font-bold text-gold-light flex items-center justify-center">
+                  ${movie.id}
+                </span>
+              </div>
+
+              <!-- Title & Meta -->
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-1.5">
+                  <h4 class="font-display text-xs sm:text-sm font-bold truncate ${
+                    isActive ? 'text-gold-light' : 'text-parchment'
+                  }">
+                    ${movie.shortTitle}
+                  </h4>
+                  ${
+                    isWatched
+                      ? `<span title="Completed" class="text-emerald-400 text-xs font-bold">✓</span>`
+                      : ''
+                  }
+                </div>
+                <div class="flex items-center gap-2 text-[11px] text-slate-400 mt-0.5">
+                  <span>${movie.year}</span>
+                  <span>&bull;</span>
+                  <span>${movie.runtimeStr}</span>
+                  <span>&bull;</span>
+                  ${statusBadgeHtml}
+                </div>
+
+                <!-- Mini Progress Bar -->
+                ${
+                  pct > 0 || isWatched
+                    ? `<div class="w-full h-1 bg-slate-800 rounded-full overflow-hidden mt-1.5">
+                        <div class="h-full ${isWatched ? 'bg-emerald-400' : 'bg-gold'}" style="width: ${
+                        isWatched ? 100 : pct
+                      }%"></div>
+                      </div>`
+                    : ''
+                }
+              </div>
+
+              <!-- Per-Movie Upload File Icon Button -->
+              <button
+                data-upload-idx="${idx}"
+                title="Load video file for Part ${movie.id}"
+                class="slot-upload-btn p-2 rounded-lg bg-white/5 hover:bg-gold/20 text-slate-300 hover:text-gold-light border border-white/10 hover:border-gold/40 transition flex-shrink-0"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      document.querySelectorAll('.playlist-card').forEach((card) => {
+        card.addEventListener('click', (e) => {
+          if (e.target.closest('.slot-upload-btn')) return;
+          const idx = parseInt(card.dataset.index, 10);
+          selectMovie(idx, true);
+        });
+
+        card.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          card.classList.add('drag-over');
+        });
+        card.addEventListener('dragleave', () => {
+          card.classList.remove('drag-over');
+        });
+        card.addEventListener('drop', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          card.classList.remove('drag-over');
+          const idx = parseInt(card.dataset.index, 10);
+          if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+            assignFileToMovie(idx, e.dataTransfer.files[0]);
+          }
+        });
+      });
+
+      document.querySelectorAll('.slot-upload-btn').forEach((btn) => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const idx = parseInt(btn.dataset.uploadIdx, 10);
+          openSingleUploadFor(idx);
+        });
+      });
+    }
+
+    function updateMarathonHeader() {
+      const watchedCount = Object.values(state.progress.watched).filter(Boolean).length;
+      const pct = Math.round((watchedCount / MOVIES.length) * 100);
+      document.getElementById('marathonStatsText').textContent = `${watchedCount} / 8 Films (${pct}%)`;
+      document.getElementById('marathonProgressBar').style.width = `${pct}%`;
+
+      const linkedCount = MOVIES.filter((m) => Boolean(getMovieDriveInfo(m))).length;
+      const linkedBadge = document.getElementById('driveLinkedCountBadge');
+      if (linkedBadge) {
+        linkedBadge.textContent = `${linkedCount}/8 Drive Linked`;
+      }
+    }
+
+    // 12. Controls & Keyboard Shortcuts Event Listeners
+    playPauseBtn.addEventListener('click', togglePlayPause);
+    centerPlayOverlay.addEventListener('click', togglePlayPause);
+    nativeVideo.addEventListener('click', togglePlayPause);
+    previewCanvas.addEventListener('click', togglePlayPause);
+
+    nativeVideo.addEventListener('timeupdate', updateTimelineUI);
+    nativeVideo.addEventListener('ended', handleMovieEnded);
+
+    seekSlider.addEventListener('input', (e) => {
+      const pct = parseFloat(e.target.value) / 100;
+      seekTo(getCurrentDuration() * pct);
+    });
+
+    document.getElementById('rewindBtn').addEventListener('click', () => {
+      seekTo(getCurrentTime() - 10);
+    });
+    document.getElementById('forwardBtn').addEventListener('click', () => {
+      seekTo(getCurrentTime() + 10);
+    });
+
+    document.getElementById('prevPartBtn').addEventListener('click', () => {
+      const prev = (state.currentIndex - 1 + MOVIES.length) % MOVIES.length;
+      selectMovie(prev, state.isPlaying);
+    });
+    document.getElementById('nextPartBtn').addEventListener('click', () => {
+      const next = (state.currentIndex + 1) % MOVIES.length;
+      selectMovie(next, state.isPlaying);
+    });
+    document.getElementById('quickNextFilmBtn').addEventListener('click', () => {
+      const next = (state.currentIndex + 1) % MOVIES.length;
+      selectMovie(next, true);
+    });
+
+    volumeSlider.addEventListener('input', (e) => {
+      const val = parseFloat(e.target.value);
+      nativeVideo.volume = val;
+      nativeVideo.muted = val === 0;
+    });
+
+    muteBtn.addEventListener('click', () => {
+      nativeVideo.muted = !nativeVideo.muted;
+      volumeSlider.value = nativeVideo.muted ? 0 : nativeVideo.volume || 0.85;
+    });
+
+    speedSelect.addEventListener('change', (e) => {
+      nativeVideo.playbackRate = parseFloat(e.target.value);
+    });
+
+    document.getElementById('autoPlayToggle').addEventListener('click', () => {
+      state.autoPlayNext = !state.autoPlayNext;
+      const btn = document.getElementById('autoPlayToggle');
+      const dot = document.getElementById('autoPlayDot');
+      if (state.autoPlayNext) {
+        btn.className =
+          'px-2.5 py-1.5 rounded-lg text-xs font-medium border border-gold/40 bg-gold/15 text-gold-light flex items-center gap-1.5 transition cursor-pointer';
+        dot.classList.add('bg-gold-light', 'animate-pulse');
+        dot.classList.remove('bg-slate-500');
+        showToast('Marathon Auto-Next ON', 'Next film will start automatically when one ends.');
+      } else {
+        btn.className =
+          'px-2.5 py-1.5 rounded-lg text-xs font-medium border border-white/15 bg-white/5 text-slate-400 flex items-center gap-1.5 transition cursor-pointer';
+        dot.classList.remove('bg-gold-light', 'animate-pulse');
+        dot.classList.add('bg-slate-500');
+      }
+    });
+
+    document.getElementById('markWatchedBtn').addEventListener('click', () => {
+      const movie = MOVIES[state.currentIndex];
+      state.progress.watched[movie.id] = !state.progress.watched[movie.id];
+      saveProgress();
+      selectMovie(state.currentIndex, state.isPlaying);
+      updateMarathonHeader();
+    });
+
+    document.getElementById('resetProgressBtn').addEventListener('click', () => {
+      state.progress = { watched: {}, timestamps: {}, customDriveUrls: state.progress.customDriveUrls || {} };
+      saveProgress();
+      renderPlaylist();
+      updateMarathonHeader();
+      showToast('Progress Reset', 'All 8 film watch statuses have been cleared.');
+    });
+
+    document.getElementById('theaterBtn').addEventListener('click', () => {
+      state.theaterMode = !state.theaterMode;
+      document.body.classList.toggle('theater-active', state.theaterMode);
+      const playerCol = document.getElementById('playerColumn');
+      const playlistCol = document.getElementById('playlistColumn');
+      if (state.theaterMode) {
+        playerCol.classList.replace('lg:col-span-8', 'lg:col-span-12');
+        playlistCol.classList.replace('lg:col-span-4', 'lg:col-span-12');
+      } else {
+        playerCol.classList.replace('lg:col-span-12', 'lg:col-span-8');
+        playlistCol.classList.replace('lg:col-span-12', 'lg:col-span-4');
+      }
+      resizeCanvases();
+    });
+
+    document.getElementById('pipBtn').addEventListener('click', async () => {
+      try {
+        if (!isCurrentMovieLocal()) {
+          showToast('Local Video Required', 'Load a local movie file first to use Picture-in-Picture.');
+          return;
+        }
+        if (document.pictureInPictureElement) {
+          await document.exitPictureInPicture();
+        } else {
+          await nativeVideo.requestPictureInPicture();
+        }
+      } catch (err) {
+        showToast('PiP Unavailable', 'Your browser blocked Picture-in-Picture mode.');
+      }
+    });
+
+    document.getElementById('fullscreenBtn').addEventListener('click', () => {
+      if (!document.fullscreenElement) {
+        cinemaContainer.requestFullscreen().catch(() => {});
+      } else {
+        document.exitFullscreen().catch(() => {});
+      }
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName)) return;
+      if (e.code === 'Space') {
+        e.preventDefault();
+        togglePlayPause();
+      } else if (e.code === 'ArrowRight') {
+        seekTo(getCurrentTime() + 10);
+      } else if (e.code === 'ArrowLeft') {
+        seekTo(getCurrentTime() - 10);
+      } else if (e.key.toLowerCase() === 'f') {
+        document.getElementById('fullscreenBtn').click();
+      } else if (e.key.toLowerCase() === 't') {
+        document.getElementById('theaterBtn').click();
+      } else if (e.key.toLowerCase() === 'm') {
+        muteBtn.click();
+      }
+    });
+
+    // 13. Dual Canvas Animation Engines (Background Embers + Interactive Magical Preview Stage)
+    const ambientCanvas = document.getElementById('ambientCanvas');
+    const ambientCtx = ambientCanvas.getContext('2d');
+
+    const bgParticles = Array.from({ length: 48 }, () => ({
+      x: Math.random(),
+      y: Math.random(),
+      r: 0.8 + Math.random() * 2.1,
+      vy: 0.00015 + Math.random() * 0.00035,
+      vx: (Math.random() - 0.5) * 0.0002,
+      alpha: 0.2 + Math.random() * 0.65,
+      phase: Math.random() * Math.PI * 2,
+    }));
+
+    const stageOrbs = Array.from({ length: 36 }, () => ({
+      angle: Math.random() * Math.PI * 2,
+      radius: 40 + Math.random() * 260,
+      speed: (0.2 + Math.random() * 0.6) * (Math.random() < 0.5 ? 1 : -1),
+      size: 1.5 + Math.random() * 3,
+      alpha: 0.3 + Math.random() * 0.7,
+    }));
+
+    function resizeCanvases() {
+      ambientCanvas.width = window.innerWidth;
+      ambientCanvas.height = window.innerHeight;
+
+      const rect = cinemaContainer.getBoundingClientRect();
+      previewCanvas.width = Math.max(320, Math.floor(rect.width));
+      previewCanvas.height = Math.max(180, Math.floor(rect.height));
+    }
+
+    window.addEventListener('resize', resizeCanvases);
+
+    function renderLoop(timestamp) {
+      if (!state.lastFrameTs) state.lastFrameTs = timestamp;
+      const dt = (timestamp - state.lastFrameTs) / 1000;
+      state.lastFrameTs = timestamp;
+
+      if (state.isPlaying && !isCurrentMovieLocal()) {
+        const speed = parseFloat(speedSelect.value) || 1;
+        state.simTime += dt * 12 * speed;
+        const dur = getCurrentDuration();
+        if (state.simTime >= dur) {
+          state.simTime = dur;
+          updateTimelineUI();
+          handleMovieEnded();
+        } else {
+          updateTimelineUI();
+        }
+      }
+
+      const aw = ambientCanvas.width;
+      const ah = ambientCanvas.height;
+      ambientCtx.clearRect(0, 0, aw, ah);
+      for (const p of bgParticles) {
+        p.y -= p.vy;
+        p.x += p.vx + Math.sin(timestamp * 0.001 + p.phase) * 0.0001;
+        if (p.y < -0.02) {
+          p.y = 1.02;
+          p.x = Math.random();
+        }
+        const flicker = 0.65 + 0.35 * Math.sin(timestamp * 0.003 + p.phase);
+        ambientCtx.beginPath();
+        ambientCtx.arc(p.x * aw, p.y * ah, p.r, 0, Math.PI * 2);
+        ambientCtx.fillStyle = `rgba(243, 213, 116, ${p.alpha * flicker * 0.45})`;
+        ambientCtx.fill();
+      }
+
+      if (!isCurrentMovieLocal()) {
+        drawMagicalPreviewStage(timestamp, dt);
+      }
+
+      requestAnimationFrame(renderLoop);
+    }
+
+    function drawMagicalPreviewStage(timestamp, dt) {
+      const w = previewCanvas.width;
+      const h = previewCanvas.height;
+      const movie = MOVIES[state.currentIndex];
+      const cx = w / 2;
+      const cy = h / 2;
+
+      const grad = previewCtx.createRadialGradient(cx, cy * 0.9, 20, cx, cy, Math.max(w, h) * 0.72);
+      grad.addColorStop(0, movie.bgGradient[1]);
+      grad.addColorStop(0.55, movie.bgGradient[0]);
+      grad.addColorStop(1, movie.bgGradient[2]);
+      previewCtx.fillStyle = grad;
+      previewCtx.fillRect(0, 0, w, h);
+
+      const baseRadius = Math.min(w, h) * 0.28;
+      previewCtx.save();
+      previewCtx.translate(cx, cy);
+      previewCtx.rotate(timestamp * 0.00018);
+      previewCtx.strokeStyle = `${movie.accentPrimary}33`;
+      previewCtx.lineWidth = 1.2;
+      previewCtx.beginPath();
+      previewCtx.arc(0, 0, baseRadius, 0, Math.PI * 2);
+      previewCtx.stroke();
+
+      previewCtx.rotate(-timestamp * 0.00032);
+      previewCtx.strokeStyle = `${movie.accentPrimary}26`;
+      previewCtx.beginPath();
+      for (let i = 0; i < 3; i++) {
+        const a = (i * Math.PI * 2) / 3 - Math.PI / 2;
+        const px = Math.cos(a) * baseRadius * 0.88;
+        const py = Math.sin(a) * baseRadius * 0.88;
+        i === 0 ? previewCtx.moveTo(px, py) : previewCtx.lineTo(px, py);
+      }
+      previewCtx.closePath();
+      previewCtx.stroke();
+      previewCtx.restore();
+
+      for (const orb of stageOrbs) {
+        if (state.isPlaying) {
+          orb.angle += orb.speed * dt;
+        } else {
+          orb.angle += orb.speed * dt * 0.15;
+        }
+        const ox = cx + Math.cos(orb.angle) * (orb.radius * (w / 900));
+        const oy = cy + Math.sin(orb.angle) * (orb.radius * (h / 550)) * 0.65;
+        previewCtx.beginPath();
+        previewCtx.arc(ox, oy, orb.size, 0, Math.PI * 2);
+        previewCtx.fillStyle = movie.accentPrimary;
+        previewCtx.globalAlpha = orb.alpha * (state.isPlaying ? 0.85 : 0.45);
+        previewCtx.fill();
+      }
+      previewCtx.globalAlpha = 1;
+
+      const scale = Math.max(0.55, Math.min(1.15, w / 920));
+      previewCtx.textAlign = 'center';
+
+      previewCtx.fillStyle = movie.accentPrimary;
+      previewCtx.font = `600 ${Math.round(13 * scale)}px Cinzel, serif`;
+      previewCtx.fillText(`YEAR ${movie.roman}  •  ${movie.year}  •  "${movie.spell.toUpperCase()}"`, cx, cy - 48 * scale);
+
+      previewCtx.fillStyle = '#f8f5ec';
+      previewCtx.font = `700 ${Math.round(30 * scale)}px Cinzel, serif`;
+      previewCtx.fillText(movie.shortTitle, cx, cy - 8 * scale);
+
+      const progressPct = getCurrentTime() / getCurrentDuration();
+      let activeChapter = movie.chapters[0];
+      for (const ch of movie.chapters) {
+        if (progressPct >= ch.pct) activeChapter = ch;
+      }
+
+      previewCtx.fillStyle = '#cbd5e1';
+      previewCtx.font = `italic 500 ${Math.round(18 * scale)}px "Cormorant Garamond", serif`;
+      previewCtx.fillText(
+        state.isPlaying
+          ? `Now Visualizing: ${activeChapter.title}`
+          : 'Press Play for Magical Preview or Drop Your Local MP4/MKV Movie File',
+        cx,
+        cy + 30 * scale
+      );
+    }
+
+    // 14. Initialize Application on Window Load
+    window.onload = function () {
+      resizeCanvases();
+      updateMarathonHeader();
+      selectMovie(0, false);
+      requestAnimationFrame(renderLoop);
+    };
+  </script>
+</body>
+</html>
