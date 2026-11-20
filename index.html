@@ -51,7 +51,6 @@
       overflow-x: hidden;
     }
 
-    /* Hide scrollbars on horizontal mobile film strip while preserving touch swipe */
     .no-scrollbar::-webkit-scrollbar {
       display: none;
     }
@@ -60,14 +59,12 @@
       scrollbar-width: none;
     }
 
-    /* Subtle HarryPotter.com radial starlight backdrop */
     .hp-backdrop {
       background:
         radial-gradient(circle at 50% 0%, rgba(201, 163, 78, 0.14) 0%, rgba(11, 13, 19, 0) 55%),
         linear-gradient(180deg, #0e121c 0%, #0b0d13 100%);
     }
 
-    /* Native video caption styling */
     video::cue {
       background-color: rgba(11, 13, 19, 0.88);
       color: #f5f2eb;
@@ -78,7 +75,7 @@
 </head>
 <body class="hp-backdrop min-h-screen flex flex-col selection:bg-hpGold/30 selection:text-hpGold-light">
 
-  <!-- Toast Notification (No browser alert()) -->
+  <!-- Toast Notification -->
   <div id="toastContainer" class="fixed bottom-4 inset-x-4 sm:inset-x-auto sm:right-5 sm:max-w-sm z-50 flex flex-col gap-2 pointer-events-none"></div>
 
   <!-- Hidden File Inputs -->
@@ -88,7 +85,6 @@
   <!-- Minimalist HarryPotter.com Inspired Header -->
   <header class="sticky top-0 z-30 bg-hpBg/90 backdrop-blur-md border-b border-white/10">
     <div class="max-w-6xl mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-3">
-      <!-- Official Gold Logo & Subtitle -->
       <div class="flex items-center gap-3 min-w-0">
         <img
           src="https://www.harrypotter.com/_next/static/media/logo-gold-600.0x4sxiupmprli.png"
@@ -102,7 +98,6 @@
         </p>
       </div>
 
-      <!-- Compact Progress Pill -->
       <div class="flex items-center gap-2.5 flex-shrink-0">
         <div class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-hpSurface border border-white/10">
           <span class="w-2 h-2 rounded-full bg-hpGold"></span>
@@ -115,29 +110,59 @@
   <!-- Main Responsive Container -->
   <main class="flex-1 w-full max-w-6xl mx-auto px-3 sm:px-6 py-4 sm:py-6 flex flex-col gap-4 sm:gap-6">
 
-    <!-- 1. WIDESCREEN 16:9 VIDEO STAGE (Clean & Unobstructed for Mobile/Tablet Touch) -->
+    <!-- 1. WIDESCREEN 16:9 VIDEO STAGE -->
     <section aria-label="Video Player" class="w-full">
       <div id="cinemaContainer" class="relative w-full aspect-video bg-black rounded-2xl overflow-hidden border border-hpGold/30 shadow-2xl">
 
-        <!-- Google Drive Cloud Stream Iframe (Full-area interactive touch/mouse) -->
+        <!-- Native HTML5 Video Player (Supports Direct Drive Stream & Local Video with full mobile touch controls) -->
+        <video
+          id="nativeVideo"
+          class="w-full h-full object-contain bg-black"
+          controls
+          playsinline
+          preload="metadata"
+        ></video>
+
+        <!-- Google Drive Cloud Stream Iframe (Desktop/Fallback Embed) -->
         <iframe
           id="driveIframe"
-          class="w-full h-full border-0 bg-black"
+          class="w-full h-full border-0 bg-black hidden"
           allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
           allowfullscreen
         ></iframe>
 
-        <!-- HTML5 Local Video Element (with native controls on mobile for reliable touch interaction) -->
-        <video
-          id="nativeVideo"
-          class="w-full h-full object-contain bg-black hidden"
-          controls
-          playsinline
-          crossorigin="anonymous"
-        ></video>
+        <!-- Mobile Stream Fallback Banner (Shown automatically if Google Drive blocks direct HTML5 stream on large files) -->
+        <div
+          id="streamFallbackBanner"
+          class="hidden absolute inset-0 bg-hpBg/95 backdrop-blur-md flex flex-col items-center justify-center p-5 text-center z-20"
+        >
+          <p class="font-display text-sm sm:text-base font-bold text-hpGold-light mb-1.5">
+            Direct Stream Blocked by Google Drive
+          </p>
+          <p class="text-xs text-hpMuted max-w-md mb-4 leading-relaxed">
+            Large video files on Google Drive often require opening in the Drive player or switching to the Drive Embed tab.
+          </p>
+          <div class="flex flex-wrap items-center justify-center gap-2.5">
+            <a
+              id="fallbackOpenDriveBtn"
+              href="#"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="min-h-[42px] px-4 py-2 rounded-xl bg-hpGold text-hpBg font-bold text-xs inline-flex items-center gap-1.5"
+            >
+              <span>Watch in Google Drive ↗</span>
+            </a>
+            <button
+              id="fallbackTryEmbedBtn"
+              class="min-h-[42px] px-4 py-2 rounded-xl bg-hpCard border border-white/15 text-hpText font-semibold text-xs cursor-pointer"
+            >
+              Try Drive Embed
+            </button>
+          </div>
+        </div>
       </div>
 
-      <!-- External Touch-Friendly Player Bar (Outside iframe so mobile taps ALWAYS work!) -->
+      <!-- External Touch-Friendly Player Bar -->
       <div class="mt-3 bg-hpSurface/95 border border-white/10 rounded-2xl p-3 sm:p-4 flex flex-col gap-3">
         <!-- Row 1: Current Film Title + Prev / Next Part Navigation -->
         <div class="flex items-center justify-between gap-2">
@@ -167,25 +192,31 @@
           </button>
         </div>
 
-        <!-- Row 2: Clean Source & Action Bar (Scrolls horizontally on small phones, wraps cleanly on tablet/desktop) -->
+        <!-- Row 2: Source Switcher & Quick Mobile Actions -->
         <div class="flex items-center gap-2 overflow-x-auto no-scrollbar pt-1 border-t border-white/10">
-          <!-- Source Toggle: Cloud Drive vs Local File -->
+          <!-- 3-Mode Source Toggle -->
           <div class="inline-flex p-1 rounded-xl bg-hpBg border border-white/10 flex-shrink-0">
             <button
-              id="modeDriveBtn"
+              id="modeDirectBtn"
               class="min-h-[36px] px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer bg-hpGold text-hpBg"
             >
-              Cloud Stream
+              Mobile Player
+            </button>
+            <button
+              id="modeEmbedBtn"
+              class="min-h-[36px] px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer text-hpMuted hover:text-hpText"
+            >
+              Drive Embed
             </button>
             <button
               id="modeLocalBtn"
               class="min-h-[36px] px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer text-hpMuted hover:text-hpText"
             >
-              Local Video
+              Local File
             </button>
           </div>
 
-          <!-- Open directly in Google Drive (Essential mobile fallback if Drive player asks for fullscreen/app) -->
+          <!-- Open directly in Google Drive App/Tab -->
           <a
             id="openDriveTabLink"
             href="#"
@@ -226,7 +257,7 @@
       </div>
     </section>
 
-    <!-- 2. ALL 8 FILMS SELECTOR (2 Columns on Mobile, 4 Columns on Tablet/Desktop) -->
+    <!-- 2. ALL 8 FILMS SELECTOR -->
     <section aria-label="All 8 Harry Potter Films" class="flex flex-col gap-3">
       <div class="flex items-center justify-between px-1">
         <h3 class="font-display text-xs sm:text-sm font-bold tracking-[0.18em] text-hpGold uppercase">
@@ -265,9 +296,7 @@
       </div>
 
       <!-- Responsive Film Grid: 2 columns on mobile, 4 columns on tablet/desktop -->
-      <div id="movieGridContainer" class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3.5">
-        <!-- Rendered via JS -->
-      </div>
+      <div id="movieGridContainer" class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3.5"></div>
     </section>
 
     <!-- 3. COMPACT FILM DETAILS CARD -->
@@ -296,13 +325,6 @@
   </main>
 
   <script>
-    /**
-     * =========================================================================
-     * HARRY POTTER 8-FILM COLLECTION — RESPONSIVE & TOUCH-OPTIMIZED PLAYER
-     * =========================================================================
-     */
-
-    // Convert Google Drive /view or ?id= URL into embeddable /preview and /view URLs
     function parseGoogleDriveUrl(rawInput) {
       if (!rawInput || typeof rawInput !== 'string') return null;
       const trimmed = rawInput.trim();
@@ -315,6 +337,7 @@
       if (fileId) {
         return {
           id: fileId,
+          directUrl: `https://drive.google.com/uc?export=download&id=${fileId}`,
           previewUrl: `https://drive.google.com/file/d/${fileId}/preview`,
           viewUrl: `https://drive.google.com/file/d/${fileId}/view`,
         };
@@ -323,6 +346,7 @@
       if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
         return {
           id: null,
+          directUrl: trimmed,
           previewUrl: trimmed.replace(/\/view(\?.*)?$/, '/preview'),
           viewUrl: trimmed,
         };
@@ -330,7 +354,6 @@
       return null;
     }
 
-    // Complete 8-Film Dataset with Updated Google Drive & Subtitle Links
     const MOVIES = [
       {
         id: 1,
@@ -342,7 +365,6 @@
         director: 'Chris Columbus',
         defaultDriveUrl: 'https://drive.google.com/file/d/1-3RLQf-MC3EakUPOk8x9-Q9QhkJELaho/view',
         subtitlePageUrl: 'https://yifysubtitles.org/subtitles/harry-potter-and-the-sorcerers-stone-2001-english-yify-115201',
-        accent: '#d4af37',
         synopsis:
           "Rescued from the outrageous neglect of his aunt and uncle, a young boy with a great destiny proves his worth while attending Hogwarts School of Witchcraft and Wizardry, uncovering the secret of the Sorcerer's Stone.",
       },
@@ -356,7 +378,6 @@
         director: 'Chris Columbus',
         defaultDriveUrl: 'https://drive.google.com/file/d/1uDn2s0_Q18si6svXTEz5--7-Hmzid-Z0/view',
         subtitlePageUrl: 'https://yts-subs.com/subtitles/harry-potter-and-the-chamber-of-secrets-english-yify-573',
-        accent: '#34d399',
         synopsis:
           'An ancient prophecy seems to be coming true when a mysterious presence begins stalking the corridors of Hogwarts and leaving its victims paralyzed. Harry must uncover the heir of Slytherin.',
       },
@@ -370,7 +391,6 @@
         director: 'Alfonso Cuarón',
         defaultDriveUrl: 'https://drive.google.com/file/d/14L5mo1pddYEoO_2QrW-P5vpxSf2UCXJT/view',
         subtitlePageUrl: 'https://yts-subs.com/subtitles/harry-potter-and-the-prisoner-of-azkaban-english-yify-574',
-        accent: '#60a5fa',
         synopsis:
           'Harry, Ron, and Hermione return to Hogwarts for their third year, where they delve into the mystery surrounding an escaped prisoner who poses a dangerous threat to the young wizard.',
       },
@@ -384,7 +404,6 @@
         director: 'Mike Newell',
         defaultDriveUrl: 'https://drive.google.com/file/d/1B7_2QWj_Djd-TqMFcHqBs5hmTezGgVUO/view',
         subtitlePageUrl: 'https://yts-subs.com/subtitles/harry-potter-and-the-goblet-of-fire-english-yify-577',
-        accent: '#fb923c',
         synopsis:
           'Harry finds himself mysteriously selected as an under-aged competitor in a dangerous tournament between three schools of magic, leading to the terrifying return of Lord Voldemort.',
       },
@@ -398,7 +417,6 @@
         director: 'David Yates',
         defaultDriveUrl: 'https://drive.google.com/file/d/1gFxQ7F_iYdr088SVBjIaus7IIB1CCfog/view',
         subtitlePageUrl: 'https://yts-subs.com/subtitles/harry-potter-and-the-order-of-the-phoenix-english-yify-578',
-        accent: '#818cf8',
         synopsis:
           'With their warning about Lord Voldemort’s return scoffed at, Harry and Dumbledore are targeted by the Ministry as Harry secretly trains a group of students to defend themselves.',
       },
@@ -412,7 +430,6 @@
         director: 'David Yates',
         defaultDriveUrl: 'https://drive.google.com/file/d/11_mFxbzdOOko8fbH8VEhu5qp54Qdb-L0/view',
         subtitlePageUrl: 'https://yts-subs.com/subtitles/harry-potter-and-the-half-blood-prince-english-yify-580',
-        accent: '#a3e635',
         synopsis:
           'As Harry begins his sixth year at Hogwarts, he discovers an old potions book marked as "the property of the Half-Blood Prince" and uncovers Lord Voldemort’s dark past and Horcruxes.',
       },
@@ -426,7 +443,6 @@
         director: 'David Yates',
         defaultDriveUrl: 'https://drive.google.com/file/d/19w8C4ArAIzsGcj1weAluyfRKlsthrRR2/view',
         subtitlePageUrl: 'https://yts-subs.com/subtitles/harry-potter-and-the-deathly-hallows-part-1-english-yify-584',
-        accent: '#cbd5e1',
         synopsis:
           'Harry, Ron, and Hermione leave Hogwarts behind on a perilous mission to track down and destroy the secret to Voldemort’s immortality: the Horcruxes.',
       },
@@ -440,16 +456,14 @@
         director: 'David Yates',
         defaultDriveUrl: 'https://drive.google.com/file/d/1bp_G-w7lW1mV1FPauta3BcYGXFGsgL4P/view',
         subtitlePageUrl: 'https://yts-subs.com/subtitles/harry-potter-and-the-deathly-hallows-part-2-english-yify-853',
-        accent: '#e6c87a',
         synopsis:
           'In the epic finale, the battle between the good and evil forces of the wizarding world escalates into an all-out war at Hogwarts. The stakes have never been higher.',
       },
     ];
 
-    // Application State
     const state = {
       currentIndex: 0,
-      sourceMode: 'drive', // 'drive' | 'local'
+      sourceMode: 'direct', // 'direct' (Mobile HTML5) | 'embed' (Drive Iframe) | 'local'
       loadedFiles: {},
       loadedSubtitles: {},
       progress: loadSavedProgress(),
@@ -457,7 +471,7 @@
 
     function loadSavedProgress() {
       try {
-        const raw = localStorage.getItem('hp_collection_progress_v3');
+        const raw = localStorage.getItem('hp_collection_progress_v4');
         return raw ? JSON.parse(raw) : { watched: {}, customDriveUrls: {} };
       } catch (e) {
         return { watched: {}, customDriveUrls: {} };
@@ -466,7 +480,7 @@
 
     function saveProgress() {
       try {
-        localStorage.setItem('hp_collection_progress_v3', JSON.stringify(state.progress));
+        localStorage.setItem('hp_collection_progress_v4', JSON.stringify(state.progress));
       } catch (e) {}
     }
 
@@ -476,13 +490,12 @@
       return parseGoogleDriveUrl(rawUrl);
     }
 
-    // DOM References
     const driveIframe = document.getElementById('driveIframe');
     const nativeVideo = document.getElementById('nativeVideo');
+    const streamFallbackBanner = document.getElementById('streamFallbackBanner');
     const singleFileInput = document.getElementById('singleFileInput');
     const subtitleFileInput = document.getElementById('subtitleFileInput');
 
-    // Non-blocking Toast Message Box (Never uses alert())
     function showToast(title, message) {
       const container = document.getElementById('toastContainer');
       if (!container) return;
@@ -501,7 +514,6 @@
       }, 3200);
     }
 
-    // SRT -> WebVTT Subtitle Converter
     function srtToWebVtt(srtText) {
       const normalized = srtText.replace(/\r+/g, '').trim();
       const vttBody = normalized.replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g, '$1.$2');
@@ -529,69 +541,76 @@
       }
     }
 
-    // Switch Active Movie & Render UI
     function selectMovie(index, forcedMode = null) {
       state.currentIndex = index;
       const movie = MOVIES[index];
       const driveInfo = getMovieDriveInfo(movie);
       const localFile = state.loadedFiles[movie.id];
 
+      streamFallbackBanner.classList.add('hidden');
+
       if (forcedMode) {
         state.sourceMode = forcedMode;
-      } else if (localFile && !driveInfo) {
+      } else if (localFile) {
         state.sourceMode = 'local';
       } else {
-        state.sourceMode = 'drive';
+        state.sourceMode = 'direct';
       }
 
-      // Update Header & Stage Labels
       document.getElementById('stagePartBadge').textContent = `Part ${movie.roman} of VIII • ${movie.year}`;
       document.getElementById('stageMovieTitle').textContent = movie.title;
-
-      // Update External Links
       document.getElementById('getSubtitlesLink').href = movie.subtitlePageUrl;
+
       const openDriveLink = document.getElementById('openDriveTabLink');
+      const fallbackDriveBtn = document.getElementById('fallbackOpenDriveBtn');
       if (driveInfo) {
         openDriveLink.href = driveInfo.viewUrl;
+        fallbackDriveBtn.href = driveInfo.viewUrl;
         openDriveLink.classList.remove('opacity-40', 'pointer-events-none');
       } else {
         openDriveLink.href = '#';
         openDriveLink.classList.add('opacity-40', 'pointer-events-none');
       }
 
-      // Update Details Card
       document.getElementById('detailMeta').textContent =
         `PART ${movie.roman} • ${movie.year} • ${movie.runtimeStr.toUpperCase()} • ${movie.director.toUpperCase()}`;
       document.getElementById('detailTitle').textContent = movie.title;
       document.getElementById('detailSynopsis').textContent = movie.synopsis;
 
-      // Toggle Video Viewport (Google Drive Iframe vs HTML5 Local Video)
       if (state.sourceMode === 'local' && localFile) {
         driveIframe.classList.add('hidden');
         driveIframe.removeAttribute('src');
         nativeVideo.classList.remove('hidden');
         nativeVideo.src = localFile.url;
         attachSubtitleTrack(movie.id);
-      } else {
+      } else if (state.sourceMode === 'embed' && driveInfo) {
         nativeVideo.pause();
         nativeVideo.classList.add('hidden');
         nativeVideo.removeAttribute('src');
         driveIframe.classList.remove('hidden');
+        driveIframe.src = driveInfo.previewUrl;
+      } else {
+        // Direct Mobile HTML5 Video Mode
+        driveIframe.classList.add('hidden');
+        driveIframe.removeAttribute('src');
+        nativeVideo.classList.remove('hidden');
         if (driveInfo) {
-          driveIframe.src = driveInfo.previewUrl;
+          nativeVideo.src = driveInfo.directUrl;
+          attachSubtitleTrack(movie.id);
         }
       }
 
-      // Update Source Switcher Tabs
-      const driveBtn = document.getElementById('modeDriveBtn');
+      // Update Source Tabs
+      const directBtn = document.getElementById('modeDirectBtn');
+      const embedBtn = document.getElementById('modeEmbedBtn');
       const localBtn = document.getElementById('modeLocalBtn');
-      const activeTabClass = 'min-h-[36px] px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer bg-hpGold text-hpBg';
-      const inactiveTabClass = 'min-h-[36px] px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer text-hpMuted hover:text-hpText';
+      const activeTab = 'min-h-[36px] px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer bg-hpGold text-hpBg';
+      const inactiveTab = 'min-h-[36px] px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer text-hpMuted hover:text-hpText';
 
-      driveBtn.className = state.sourceMode === 'drive' ? activeTabClass : inactiveTabClass;
-      localBtn.className = state.sourceMode === 'local' ? activeTabClass : inactiveTabClass;
+      directBtn.className = state.sourceMode === 'direct' ? activeTab : inactiveTab;
+      embedBtn.className = state.sourceMode === 'embed' ? activeTab : inactiveTab;
+      localBtn.className = state.sourceMode === 'local' ? activeTab : inactiveTab;
 
-      // Update Watched Button
       const isWatched = Boolean(state.progress.watched[movie.id]);
       const watchBtn = document.getElementById('markWatchedBtn');
       watchBtn.textContent = isWatched ? '✓ Watched' : '✓ Mark Watched';
@@ -599,12 +618,22 @@
         ? 'min-h-[40px] px-3.5 py-2 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 text-xs font-semibold inline-flex items-center gap-1.5 flex-shrink-0 transition cursor-pointer ml-auto'
         : 'min-h-[40px] px-3.5 py-2 rounded-xl bg-hpCard hover:bg-white/10 text-hpText border border-white/10 text-xs font-medium inline-flex items-center gap-1.5 flex-shrink-0 transition cursor-pointer ml-auto';
 
-      attachSubtitleTrack(movie.id);
       renderMovieGrid();
       updateHeaderProgress();
     }
 
-    // Render Clean 8-Film Card Grid (2x4 on Mobile, 4x2 on Tablet/Desktop)
+    // If Google Drive blocks direct streaming on mobile/desktop due to file size, show clean fallback options
+    nativeVideo.addEventListener('error', () => {
+      if (state.sourceMode === 'direct') {
+        streamFallbackBanner.classList.remove('hidden');
+      }
+    });
+
+    document.getElementById('fallbackTryEmbedBtn').addEventListener('click', () => {
+      streamFallbackBanner.classList.add('hidden');
+      selectMovie(state.currentIndex, 'embed');
+    });
+
     function renderMovieGrid() {
       const grid = document.getElementById('movieGridContainer');
       grid.innerHTML = MOVIES.map((movie, idx) => {
@@ -661,7 +690,6 @@
       document.getElementById('marathonStatsText').textContent = `${watchedCount} / 8 Watched`;
     }
 
-    // Event Listeners
     document.getElementById('prevPartBtn').addEventListener('click', () => {
       const prev = (state.currentIndex - 1 + MOVIES.length) % MOVIES.length;
       selectMovie(prev);
@@ -672,8 +700,12 @@
       selectMovie(next);
     });
 
-    document.getElementById('modeDriveBtn').addEventListener('click', () => {
-      selectMovie(state.currentIndex, 'drive');
+    document.getElementById('modeDirectBtn').addEventListener('click', () => {
+      selectMovie(state.currentIndex, 'direct');
+    });
+
+    document.getElementById('modeEmbedBtn').addEventListener('click', () => {
+      selectMovie(state.currentIndex, 'embed');
     });
 
     document.getElementById('modeLocalBtn').addEventListener('click', () => {
@@ -727,7 +759,7 @@
           name: file.name,
         };
         attachSubtitleTrack(movie.id);
-        showToast('Subtitles Ready', `Attached "${file.name}" for Local Video playback.`);
+        showToast('Subtitles Ready', `Attached "${file.name}" to video player.`);
       } catch (err) {
         showToast('Subtitle Error', 'Unable to read subtitle file.');
       }
@@ -740,7 +772,6 @@
       selectMovie(state.currentIndex, state.sourceMode);
     });
 
-    // Edit Drive Link Drawer
     document.getElementById('toggleEditLinkBtn').addEventListener('click', () => {
       const drawer = document.getElementById('pasteDriveDrawer');
       const input = document.getElementById('driveLinkInput');
@@ -766,10 +797,9 @@
       saveProgress();
       document.getElementById('pasteDriveDrawer').classList.add('hidden');
       showToast('Stream Updated', `Updated Google Drive link for Part ${movie.roman}.`);
-      selectMovie(state.currentIndex, 'drive');
+      selectMovie(state.currentIndex, 'direct');
     });
 
-    // Auto-mark watched when local video finishes
     nativeVideo.addEventListener('ended', () => {
       const movie = MOVIES[state.currentIndex];
       state.progress.watched[movie.id] = true;
@@ -778,7 +808,6 @@
       updateHeaderProgress();
     });
 
-    // Initialize App
     window.addEventListener('DOMContentLoaded', () => {
       selectMovie(0);
     });
